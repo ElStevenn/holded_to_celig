@@ -3,72 +3,72 @@ DOCKER_COMPOSE = docker-compose
 DOCKER = docker
 PROJECT_NAME = holded_celig
 
-# Iniciar la aplicación con Docker Compose
+# Start the application with Docker Compose
 .PHONY: up
 up:
 	$(DOCKER_COMPOSE) up --build -d
 
-# Parar la aplicación
+# Stop the application
 .PHONY: down
 down:
 	$(DOCKER_COMPOSE) down
 
-# Ver logs de la aplicación
+# View application logs
 .PHONY: logs
 logs:
 	$(DOCKER_COMPOSE) logs -f
 
-# Ver logs específicos de Celery Worker
+# View specific logs for Celery Worker
 .PHONY: logs-worker
 logs-worker:
 	$(DOCKER) logs -f celery_worker
 
-# Ver logs específicos de Celery Beat
+# View specific logs for Celery Beat
 .PHONY: logs-beat
 logs-beat:
 	$(DOCKER) logs -f celery_beat
 
-# Ver logs específicos de Redis
+# View specific logs for Redis
 .PHONY: logs-redis
 logs-redis:
 	$(DOCKER) logs -f redis_service
 
-# Reiniciar solo Celery Worker
+# Restart only Celery Worker
 .PHONY: restart-worker
 restart-worker:
 	$(DOCKER_COMPOSE) restart celery_worker
 
-# Reiniciar solo Celery Beat
+# Restart only Celery Beat
 .PHONY: restart-beat
 restart-beat:
 	$(DOCKER_COMPOSE) restart celery_beat
 
-# Limpiar volúmenes y contenedores (¡cuidado con este comando!)
+# Clean volumes and containers (be careful with this command)
 .PHONY: clean
 clean:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
 
-# Construir las imágenes nuevamente
+# Rebuild images
 .PHONY: build
 build:
 	$(DOCKER_COMPOSE) build
 
-# Ejecutar Celery Worker manualmente
+# Manually run Celery Worker
 .PHONY: celery-worker
 celery-worker:
 	$(DOCKER_COMPOSE) run --rm celery_worker celery -A config.celery_config worker --loglevel=info
 
-# Ejecutar Celery Beat manualmente
+# Manually run Celery Beat
 .PHONY: celery-beat
 celery-beat:
 	$(DOCKER_COMPOSE) run --rm celery_beat celery -A config.celery_config beat --loglevel=info
 
-# Ejecutar un shell interactivo en la aplicación
+# Run an interactive shell in the application
 .PHONY: shell
 shell:
 	$(DOCKER_COMPOSE) exec app /bin/sh
 
-# Ejecutar pruebas
+# Run tests
 .PHONY: test
 test:
 	pytest tests/

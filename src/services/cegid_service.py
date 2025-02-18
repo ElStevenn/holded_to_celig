@@ -1,3 +1,4 @@
+import asyncio, aiohttp
 
 """API class to interactuate with Holded"""
 

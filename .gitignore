@@ -5,3 +5,6 @@
 *.pyc
 __pycache__
 .DS_Store
+
+src/venv
+src/config/credentials.json

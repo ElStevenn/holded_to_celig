@@ -220,3 +220,29 @@ Para integrar datos desde **Holded** a **Cegid Diez**, es necesario crear tanto 
 
 ---
 
+## 🔹 **Adjuntar Documentos a una Factura en Cegid Diez**
+Para adjuntar un documento (ejemplo: PDF) a una factura en Cegid Diez, es necesario enviarlo en **Base64**.
+
+📌 **Endpoint en Cegid Diez:**  
+`POST /api/facturas/upload`
+
+### **📄 Parámetros requeridos**
+| Parámetro         | Tipo    | Obligatorio | Descripción |
+|------------------|--------|------------|-------------|
+| `Ejercicio`      | string | ✅ Sí      | Año contable de la factura. |
+| `Serie`         | string | ✅ Sí      | Serie de la factura. |
+| `Documento`      | int    | ✅ Sí      | Número de factura en Cegid. |
+| `NombreArchivo`  | string | ✅ Sí      | Nombre del archivo (ej. `factura_12345.pdf`). |
+| `Archivo`       | string | ✅ Sí      | Documento en **Base64**. |
+
+### **📌 Ejemplo de JSON a enviar**
+```json
+{
+  "Ejercicio": "2025",
+  "Serie": "A",
+  "Documento": 12345,
+  "NombreArchivo": "factura_12345.pdf",
+  "Archivo": "JVBERi0xLjUKJe... (contenido en Base64)"
+}
+
+
