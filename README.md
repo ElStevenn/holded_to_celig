@@ -1,7 +1,7 @@
 ## DOCUMENTACIÓN
 
 ### Descripción
-Este proyecto es una aplicación que permite obtener datos de una factura de **Holded** y de un contacto de **Cegid Diez**, para luego sincronizarlos en este último.
+Esto es un software que permite obtener datos de una factura de **Holded** y de un contacto de **Cegid Diez**, para luego sincronizarlos en este último.
 
 ---
 
@@ -159,15 +159,64 @@ Para integrar datos desde **Holded** a **Cegid Diez**, es necesario crear tanto 
 4. **Validaciones Previas al Envío a Cegid**  
    - Se recomienda verificar que los datos de la factura sean correctos y completos antes de enviarlos a Cegid para evitar errores.
 
----
-
-## 🚀 **Próximas Mejoras**
-✅ **Agregar lógica para el mapeo de retenciones** (`BaseRetencion`, `PorcentajeRetencion`, `CuotaRetencion`).  
-✅ **Confirmar cómo manejar diferentes monedas en Cegid**.  
-✅ **Implementar manejo de errores en caso de fallos en la API de Cegid**.  
-✅ **Añadir soporte para sincronización de pagos desde Holded a Cegid**.  
 
 ---
 
-📌 **Con esta documentación, queda clara la estructura de facturas en Cegid Diez y cómo mapearla con Holded.**  
-💡 **Si hay cambios en la API de Cegid o Holded, esta documentación debe actualizarse.** 🚀
+## 🏷️ **Estructura del Cliente en Cegid Diez API**
+### **Campos Principales**
+| Campo                          | Tipo      | Obligatorio | Descripción |
+|--------------------------------|----------|------------|-------------|
+| `Codigo`                       | integer  | ✅ Sí      | Código único del cliente en Cegid. |
+| `NombreFiscal`                 | string   | ✅ Sí      | Razón social del cliente. |
+| `NombreComercial`              | string   | ✅ Sí      | Nombre comercial del cliente. |
+| `CIF`                          | string   | ✅ Sí      | Número de Identificación Fiscal (NIF, CIF, RFC, etc.). |
+| `Direccion`                    | string   | ❌ No      | Dirección fiscal del cliente. |
+| `CodigoPostal`                 | integer  | ❌ No      | Código postal del cliente. |
+| `Poblacion`                    | string   | ❌ No      | Ciudad del cliente. |
+| `Provincia`                    | string   | ❌ No      | Provincia o estado del cliente. |
+| `Telefono`                     | string   | ❌ No      | Número de teléfono del cliente. |
+| `AplicarRetencion`             | boolean  | ❌ No      | Si el cliente está sujeto a retención fiscal. |
+| `AplicarRecargoEquivalencia`    | boolean  | ❌ No      | Indica si el cliente está sujeto a recargo de equivalencia. |
+| `GrupoIngresos`                | string   | ❌ No      | Grupo contable de ingresos del cliente. |
+| `Fax`                          | string   | ❌ No      | Número de fax del cliente. |
+| `ClienteGenerico`              | boolean  | ❌ No      | Si es un cliente genérico o no. |
+| `NoIncluir347`                 | boolean  | ❌ No      | Si se debe excluir de la declaración 347. |
+| `NoActivo`                     | boolean  | ❌ No      | Indica si el cliente está inactivo. |
+| `Pais`                         | string   | ❌ No      | Código de país del cliente (ejemplo: "ES" para España). |
+| `Mail`                         | string   | ❌ No      | Correo electrónico del cliente. |
+| `Empresa`                      | integer  | ❌ No      | No se debe informar, se rellena automáticamente. |
+| `TipoIdentificador`            | integer  | ❌ No      | Tipo de documento de identificación fiscal (DNI, CIF, etc.). |
+
+---
+
+## 🔄 **Cómo Mapear Datos de Holded con Cegid Diez**
+| **Campo en Holded**    | **Campo en Cegid Diez**  | **Notas** |
+|------------------------|-------------------------|-----------|
+| `contactId`           | `Codigo`                | ID del cliente en Holded, se usará como identificador en Cegid. |
+| `name`                | `NombreFiscal`          | Razón social del cliente en Holded. |
+| `name`                | `NombreComercial`       | Nombre comercial (puede ser el mismo que la razón social). |
+| `vatNumber`           | `CIF`                   | Número de identificación fiscal (NIF, CIF, RFC). |
+| `address.street`      | `Direccion`             | Dirección fiscal. |
+| `address.zipcode`     | `CodigoPostal`          | Código postal. |
+| `address.city`        | `Poblacion`             | Ciudad. |
+| `address.province`    | `Provincia`             | Provincia o estado. |
+| `email`              | `Mail`                   | Correo electrónico del cliente. |
+| `phone`              | `Telefono`               | Número de teléfono del cliente. |
+
+---
+
+## ⚠️ **Consideraciones Importantes**
+1. **El `Codigo` debe ser único**  
+   - Se debe generar de forma única en el sistema antes de enviar el cliente a Cegid.
+
+2. **El `CIF` (NIF) es obligatorio**  
+   - Si un cliente no tiene NIF, se debe validar con el cliente cómo manejar estos casos.
+
+3. **Verificar los datos antes de enviarlos**  
+   - No todos los clientes en Holded tienen dirección, teléfono o correo electrónico. Se recomienda validar antes de enviar.
+
+4. **Clientes duplicados**  
+   - Antes de crear un nuevo cliente, se debe comprobar si ya existe en Cegid Diez usando `GET /Clientes`.
+
+---
+
