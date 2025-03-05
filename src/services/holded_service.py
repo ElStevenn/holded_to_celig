@@ -5,6 +5,7 @@ import base64
 import requests
 import os
 
+from src.config.settings import HOLDED_ACCOUNTS
 """API class to interactuate with Holded"""
 
 
@@ -27,7 +28,6 @@ class HoldedAPI():
 
     async def list_clients(self):
         pass
-
 
     
     async def invoice_pdf(self, documentId, output_filename="invoice.pdf"):
