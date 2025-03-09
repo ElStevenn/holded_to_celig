@@ -37,9 +37,6 @@ class CegidAPI:
         self.client_secret_erp = CLIENT_SECRET_ERP
         self.auth_token_erp = token_erp()
 
-        # Other values
-        self.ejercicio = str(datetime.now().year)
-
 
     async def renew_token_erp(self):
         """Renews token for the ERP API"""
@@ -176,23 +173,48 @@ class CegidAPI:
                 data = await res.json()
                 print(data)
     
-    async def crear_factura(self, numero_factura, fecha_factura, fecha_vencimiento, base_imponible1, cuota_iva1, total_factura, tipo_asiento, es_factura_simplificada):
+    async def crear_factura(self, invoice: dict):
         url = self.api_con + "/api/facturas/add"
-        body = {
-            "Ejercicio": self.ejercicio,
-
-        }
+        body = invoice
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
             "Content-Type": "application/json"
         }
 
-    async def add_documento_factura(self, ):
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=body, headers=headers) as res:
+                print(res.status)
+                
+                if res.status == 401:
+                    await self.renew_token_api_contabilidad()
+                    return await self.crear_factura(invoice)
+
+                if res.status != 200:
+                    error = await res.json()
+                    print(f"An error ocurred: {res.status} : {error}")
+                
+
+                data = await res.json()
+                print(data)
+
+
+    async def add_documento_factura(self, invoice_file: dict):
         url = self.api_con + "/api/facturas/upload"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
             "Content-Type": "application/json"
         }
+        body = invoice_file
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=body, headers=headers) as res:
+                print(res.status)
+                if res.status != 200:
+                    error = await res.json()
+                    print(f"An error ocurred: {res.status} : {error}")
+
+                data = await res.json()
+                print(data)
 
     async def get_facturas(self, filter=None, limit=None, offset=None):
         url = self.api_con + "/api/facturas"
@@ -260,11 +282,11 @@ class CegidAPI:
 
 async def main_test():
     cegid = CegidAPI()
-    # await cegid.renew_token_api_contabilidad()
+    await cegid.renew_token_api_contabilidad()
 
 
-    facturas = await cegid.create_cliente()
-    print(facturas)
+    # facturas = await cegid.create_cliente()
+    # print(facturas)
 
 if __name__ == "__main__":
     asyncio.run(main_test())

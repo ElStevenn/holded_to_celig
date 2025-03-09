@@ -44,3 +44,28 @@ def update_token_erp(new_token):
         credentials["cegid"]["api_erp"]["auth_token"] = new_token
         json.dump(credentials, f, indent=4)
 
+# HANDLE OFFSET
+def set_offset(api_key, new_offset):
+    with open(CREDENTIALS_FILE, "w") as f:
+        for account in HOLDED_ACCOUNTS:
+            if account["api_key"] == api_key:
+                account["offset"] = new_offset
+        json.dump(credentials, f, indent=4)
+
+def increment_offset(api_key):
+    with open(CREDENTIALS_FILE, "r") as f:
+        data = json.load(f)
+    for account in data["holded_accounts"]:
+        if account["api_key"] == api_key:
+            account["offset"] += 1
+            break
+    with open(CREDENTIALS_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def get_offset(api_key: str) -> int:
+    with open(CREDENTIALS_FILE, "r") as f:
+        data = json.load(f)
+    for account in data["holded_accounts"]:
+        if account["api_key"] == api_key:
+            return account["offset"]
+    return 0 

@@ -14,31 +14,32 @@ class HoldedAPI:
         self.base_url = "https://api.holded.com/api"
         self.docType_invoice = "invoice"
 
-    async def list_invoices(self, starttmp=None, endtmp=None):
-        url = f"{self.base_url}/invoicing/v1/documents/{self.docType_invoice}"
-        params = {}
-        if starttmp:
-            params["starttmp"] = starttmp
-        if endtmp:
-            params["endtmp"] = endtmp
+
+    async def list_invoices(self):
+        url = self.base_url + "/invoicing/v1/documents/invoice"  
 
         headers = {
-            "accept": "application/json",
-            "key": self.api_key,
-            "User-Agent": "Mozilla/5.0 (compatible; MyApp/1.0)"
+            "Accept": "application/json",
+            "Key": self.api_key,
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as res:
-                try:
-                    data = await res.json()
-                except Exception as e:
-                    print("JSON Decode Error:", e)
-                    return []
+            async with session.get(url, headers=headers) as res:
+                response_text = await res.text()
+
                 if res.status != 200:
-                    print("Error listing invoices:", data)
+                    print(f"Error: {res.status} - {response_text}")
                     return []
-                return data
+
+                # Force JSON parsing manually
+                try:
+                    data = json.loads(response_text)  
+              
+                    return data  
+                except json.JSONDecodeError as e:
+                    print(f"JSON Parsing Error: {e}")
+                    return []
+
 
     async def invoice_details(self, document_id):
         url = f"{self.base_url}/invoicing/v1/documents/{self.docType_invoice}/{document_id}"
@@ -64,15 +65,13 @@ class HoldedAPI:
         }
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as res:
+           
+                data = await res.json()
+
                 if res.status != 200:
                     return None
-                try:
-                    data = await res.json()
-                except:
-                    return None
-                if "data" not in data:
-                    return None
-                return data["data"]
+            
+                return data
 
     async def invoice_pdf(self, document_id, output_filename="invoice.pdf"):
         url = f"{self.base_url}/invoicing/v1/documents/{self.docType_invoice}/{document_id}/pdf"
@@ -94,20 +93,31 @@ class HoldedAPI:
             except aiohttp.ClientError:
                 return None
 
+    async def get_invoice_document_pdf(self, document_id):
+        url = self.base_url + f"/invoicing/v1/documents/{self.docType_invoice}/{document_id}/pdf"
+        headers = {
+            # Even though it's JSON, you might just omit the Accept
+            # or set it to 'application/json' if the endpoint specifically requires it:
+            "Accept": "application/json",
+            "key": self.api_key
+        }
 
-def get_invoice_pdf():
-    url = "https://api.holded.com/api/invoicing/v1/documents/invoice/67af388ecad68cc3060adba3/pdf"
-    headers = {"accept": "application/json", "key": "dc280045a98d2dfa0b8a49f74adbd60a"}
-    res = requests.get(url, headers=headers)
-    data = res.json()
-    if data.get("status") == 1 and "data" in data:
-        pdf_data = base64.b64decode(data["data"])
-        with open("invoice.pdf", "wb") as pdf_file:
-            pdf_file.write(pdf_data)
-        print("PDF saved as invoice.pdf")
-    else:
-        print("Error fetching invoice PDF")
-
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as res:
+                if res.status != 200:
+                    print(f"Error {res.status} fetching invoice PDF for {document_id}")
+                    return None
+                try:
+                    resp_bytes = await res.read()
+                    resp_str = resp_bytes.decode("utf-8")
+                    resp_json = json.loads(resp_str)
+                    # Now we can access the 'data' key
+                    base64_pdf = resp_json.get("data")
+                    # If you just need the raw base64 string, return it:
+                    return base64_pdf
+                except Exception as e:
+                    print("Error reading PDF JSON data:", e)
+                    return None
 
 async def fetch_and_prepare_invoices(holded_api, starttmp=None, endtmp=None):
     invoices = await holded_api.list_invoices(starttmp, endtmp)
@@ -155,21 +165,25 @@ async def migrate_invoices_from_all_accounts(starttmp=None, endtmp=None):
 
 async def main_test():
     # Example with a single account key for testing
-    holded_account = HoldedAPI("dc280045a98d2dfa0b8a49f74adbd60a")
+    holded_account = HoldedAPI("ca61cda9434830f1a913d4d8f2ab88db")
 
     # 1. Fetch summarized invoice list
     invoice_list = await holded_account.list_invoices()
-    print("List Invoices:", invoice_list)
+    # print("List Invoices:", invoice_list[0])
+    print(invoice_list[0])
 
-    # 2. Fetch details of a single invoice if needed
-    if invoice_list:
-        some_invoice_id = invoice_list[0].get("id")
-        details = await holded_account.invoice_details(some_invoice_id)
-        print("Invoice Details:", details)
+    client = await holded_account.get_invoice_document_pdf(invoice_list[0].get("id"))
+    print(client)
 
-    # 3. Migrate from multiple accounts (if HOLDED_ACCOUNTS is set)
-    # data = await migrate_invoices_from_all_accounts()
-    # print("Data from all accounts:", data)
+    # # 2. Fetch details of a single invoice if needed
+    # if invoice_list:
+    #     some_invoice_id = invoice_list[0].get("id")
+    #     details = await holded_account.invoice_details(some_invoice_id)
+    #     print("Invoice Details:", details)
+
+    # # 3. Migrate from multiple accounts (if HOLDED_ACCOUNTS is set)
+    # # data = await migrate_invoices_from_all_accounts()
+    # # print("Data from all accounts:", data)
 
 if __name__ == "__main__":
     asyncio.run(main_test())

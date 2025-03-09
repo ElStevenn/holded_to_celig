@@ -1,0 +1,53 @@
+{
+    "factura": {
+      "Ejercicio": "2025",
+      "Serie": "A-2025",
+      "Documento": 39,
+      "TipoAsiento": "FacturasEmitidas",
+      "Fecha": 1741042800,
+      "CuentaCliente": "6425acb25c26b6ca87023412",
+      "FechaFactura": 1741042800,
+      "Descripcion": "Factura simplificada",
+      "BaseImponible1": 125.42,
+      "CuotaIVA1": 5.02,
+      "PorcentajeIVA1": 4,
+      "TotalFactura": 130.44,
+      "TipoFactura": "OpInteriores",
+      "NombreCliente": "Miguel Francisco Zurro Pareja",
+      "CifCliente": "ESXXXXXXXXX",
+      "Detalles": [
+        {
+          "Ejercicio": "2025",
+          "Serie": "A-2025",
+          "Documento": 39,
+          "Linea": 1,
+          "Concepto": 1001,
+          "Cuenta": "64227fd364fcfe702b0945ba",
+          "Fecha": 1741042800,
+          "Debe": 125.42,
+          "Haber": 130.44,
+          "Descripcion": "AOVE Ecológico Olivares de Altomira 3l",
+          "Contrapartida": "400001",
+          "Justificante": "L250330125",
+          "PunteoBancario": 0,
+          "PunteoCuenta": "",
+          "Tercero": "6425acb25c26b6ca87023412"
+        }
+      ],
+      "Vencimientos": [
+        {
+          "Ejercicio": "2025",
+          "Serie": "A-2025",
+          "Documento": 39,
+          "NumeroVencimiento": 1,
+          "FechaFactura": 1741042800,
+          "CuentaCliente": "6425acb25c26b6ca87023412",
+          "NumeroFactura": "A-2025-039",
+          "FechaVencimiento": 1741042800,
+          "Importe": 130.44,
+          "CodigoTipoVencimiento": 1
+        }
+      ]
+    }
+  }
+  
