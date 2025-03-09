@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -11,8 +11,6 @@ services:
       - celery_beat
     networks:
       - holded_celig_network
-    volumes:
-      - app_data:/app/data
     ports:
       - "8000:8000"
     environment:
@@ -25,8 +23,6 @@ services:
     restart: unless-stopped
     networks:
       - holded_celig_network
-    volumes:
-      - redis_data:/data
     ports:
       - "6379:6379"
     command:
@@ -39,13 +35,11 @@ services:
     build: .
     container_name: celery_worker
     restart: unless-stopped
-    networks:
-      - holded_celig_network
-    volumes:
-      - celery_worker_data:/app/celery_worker/data
     depends_on:
       - redis
-    command: celery -A config.celery_config worker --loglevel=info
+    networks:
+      - holded_celig_network
+    command: celery -A src.workers.celery_config worker --loglevel=info
 
   celery_beat:
     build: .
@@ -56,16 +50,8 @@ services:
       - celery_worker
     networks:
       - holded_celig_network
-    volumes:
-      - celery_beat_data:/app/celery_beat/data
-    command: celery -A config.celery_config beat --loglevel=info
+    command: celery -A src.workers.celery_config beat --loglevel=info
 
 networks:
   holded_celig_network:
     driver: bridge
-
-volumes:
-  app_data:
-  redis_data:
-  celery_worker_data:
-  celery_beat_data:

@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Inicia Celery Worker en segundo plano
-celery -A config.celery_config worker --loglevel=info &
+set -e  # Exit on error
 
-# Inicia Celery Beat para ejecutar tareas periódicas en segundo plano
-celery -A config.celery_config beat --loglevel=info &
+echo "Starting Celery Worker..."
+celery -A src.workers.celery_config worker --loglevel=info &
 
-# Ejecuta la API o el servicio principal (ajusta esto si usas FastAPI o Flask)
-uvicorn main:app --host 0.0.0.0 --port 8000
+echo "Starting Celery Beat..."
+celery -A src.workers.celery_config beat --loglevel=info &
+
+# Keep the container running
+tail -f /dev/null

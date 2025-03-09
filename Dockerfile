@@ -2,13 +2,13 @@ FROM python:3.11
 
 WORKDIR /src
 
-COPY . .
+COPY . . 
+
+RUN apt-get update && apt-get install -y nano && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV CELERY_BROKER_URL=redis://redis:6379/0
-ENV CELERY_RESULT_BACKEND=redis://redis:6379/0
-
+# Expose only if you have a web service
 EXPOSE 8000
 
 ENTRYPOINT ["sh", "entrypoint.sh"]

@@ -47,13 +47,11 @@ class AsyncService:
             }
             # print(document)
 
-            await cegid_api.crear_factura(transformed)
+            print("*Creating factura*")
+            # await cegid_api.crear_factura(transformed)
             # await cegid_api.add_documento_factura(document)
 
-            # increment_offset(holded_api.api_key)
-            
-
-            break
+            increment_offset(holded_api.api_key)
 
     async def transform_invoice_holded_to_cegid(self, holded_invoice: dict, holded_client: dict) -> dict:
         """
@@ -248,7 +246,7 @@ class AsyncService:
             holded_api = HoldedAPI(account['api_key'])
             await self.process_account_invoices(holded_api, cegid_api, apply_offset)
             # remove 'break' if you want all accounts processed
-            break
+            # break
 
 async def main_test():
     async_service = AsyncService()

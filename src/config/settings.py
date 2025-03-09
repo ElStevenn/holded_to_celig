@@ -1,5 +1,6 @@
 import json
 import os
+from dotenv import load_dotenv
 
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "credentials.json")
 
@@ -19,6 +20,9 @@ PASSWORD = credentials["cegid"]["password"]
 # API CONTAVILIDAD
 CLIENT_ID_CONT = credentials["cegid"]["api_contavilidad"]["clientId"]
 CLIENT_SECRET_CONT = credentials["cegid"]["api_contavilidad"]["clientSecret"]
+
+# REDIS
+REDIS_URL = 'redis://redis:6379/0'
 
 def update_token_con(new_token):
     with open(CREDENTIALS_FILE, "w") as f:
