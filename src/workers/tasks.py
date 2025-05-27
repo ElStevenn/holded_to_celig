@@ -1,5 +1,5 @@
 from celery import shared_task
-from services.sync_service import AsyncService 
+from src.services.sync_service import AsyncService 
 import asyncio
 
 
