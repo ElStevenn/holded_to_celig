@@ -3,8 +3,9 @@ import aiohttp
 from datetime import datetime
 import json
 import base64
+import time
 
-from config.settings import (
+from src.config.settings import (
         USERNAME,
         PASSWORD, 
         CLIENT_ID_ERP, 
@@ -20,12 +21,13 @@ from config.settings import (
 """API class to interactuate with Holded"""
 
 class CegidAPI:
-    def __init__(self):
+    def __init__(self, cod_empresa):
         self.api_erp = "http://apierp.diezsoftware.com"
         self.api_con = "https://apicon.diezsoftware.com"
         self.api_rec = "https://apirec.diezsoftware.com"
         self.username = USERNAME
         self.password = PASSWORD
+        self.cod_empresa = cod_empresa
 
         # API CONTAVILIDAD
         self.client_id_con = CLIENT_ID_CONT
@@ -79,7 +81,7 @@ class CegidAPI:
             "client_secret": self.client_secret_con,
             "username": self.username,
             "password": self.password,
-            "cod_empresa": "8",
+            "cod_empresa": str(self.cod_empresa),
             "client_id": self.client_id_con
         }
 
@@ -91,7 +93,6 @@ class CegidAPI:
                     if res.status == 200:
                         data = await res.json()
                         acces_token = data.get("access_token")
-                        print("new acces token for api contavilidad: ", acces_token)
                         update_token_con(acces_token)
                     else:
                         print(f"Error: {res.status} - {await res.text()}")        
@@ -194,27 +195,77 @@ class CegidAPI:
                     error = await res.json()
                     print(f"An error ocurred: {res.status} : {error}")
                 
+                if res.status == 500:
+                    print("Interval Server Error ocurred", res.text)
+                    return 
+
+                data = await res.json()
+                print(data)
+
+    async def crear_factura_nuevo_sistema(self, invoice: dict):
+        url = self.api_con + "/api/facturas/addNuevoSistemaSII"
+        body = invoice
+        headers = {
+            "Authorization": f"Bearer {self.auth_token_con}",
+            "Content-Type": "application/json"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=body, headers=headers) as res:
+                print(res.status)
+                
+                if res.status == 401:
+                    await self.renew_token_api_contabilidad()
+                    return await self.crear_factura_nuevo_sistema(invoice)
+
+                if res.status != 200:
+                    error = await res.json()
+                    print(f"An error ocurred: {res.status} : {error}")
+                
+                if res.status == 500:
+                    print("Interval Server Error ocurred", res.text)
+                    return 
 
                 data = await res.json()
                 print(data)
 
     async def add_documento_factura(self, invoice_file: dict):
-        url = self.api_con + "/api/facturas/upload"
+        """Uploads a document for a factura (invoice) to the Cegid API."""
+        url = f"{self.api_con}/api/facturas/upload"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json",
         }
-        body = invoice_file
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=body, headers=headers) as res:
-                print(res.status)
-                if res.status != 200:
-                    error = await res.json()
-                    print(f"An error ocurred: {res.status} : {error}")
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.post(url, json=invoice_file) as res:
 
-                data = await res.json()
-                print(data)
+                # 401: token caducado 
+                if res.status == 401:
+                    await self.renew_token_api_contabilidad()
+                    return await self.add_documento_factura(invoice_file)
+
+                # leemos el cuerpo UNA sola vez
+                body_bytes = await res.read()
+                body_text  = body_bytes.decode(errors="replace").strip()
+
+                if res.status == 200:
+                    if not body_text:
+                        return None
+
+                    try:
+                        return json.loads(body_text)
+                    except json.JSONDecodeError:
+                        return body_text
+
+
+                try:
+                    error = json.loads(body_text) if body_text else {}
+                except json.JSONDecodeError:
+                    error = body_text or "<sin cuerpo>"
+
+                raise RuntimeError(f"upload falló {res.status}: {error}")
 
     async def get_facturas(self, filter=None, limit=None, offset=None):
         url = self.api_con + "/api/facturas"
@@ -331,6 +382,7 @@ class CegidAPI:
                 data = await res.json()
                 print("Response -> ", data )
 
+    # Subcuentas
     async def get_subcuentas(self):
         url = self.api_con + "/api/subcuentas?$skip=100"
         headers = {
@@ -374,6 +426,9 @@ class CegidAPI:
                     return response_json
 
                 return response_json.get('Datos', None)
+
+    async def add_subecuenta(self, codigo: str, description: str, tipo: str):
+        pass
 
 async def main_test():
     cegid = CegidAPI()

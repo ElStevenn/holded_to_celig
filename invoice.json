@@ -1,0 +1,42 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "1",
+    "Documento": 583,
+    "TipoAsiento": "FacturasEmitidas",
+    "FechaFactura": 20250531,
+    "CuentaCliente": "43000117",
+    "NumeroFactura": "20250531",
+    "Descripcion": "Factura de PROYECTOS CONSCIENTES SL. (TR",
+    "TotalFactura": 1642.06,
+    "TipoFactura": "OpInteriores",
+    "TipoVencimiento": "2",
+    "BaseImponible1": 1578.9,
+    "PorcentajeIVA1": 4,
+    "CuotaIVA1": 63.16,
+    "Vencimientos": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "1",
+            "Documento": 583,
+            "NumeroVencimiento": 1,
+            "FechaFactura": 20250531,
+            "CuentaCliente": "43000117",
+            "NumeroFactura": "20250531",
+            "FechaVencimiento": 20250601,
+            "Importe": 1642.06,
+            "CodigoTipoVencimiento": 1
+        }
+    ],
+    "Apuntes": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "1",
+            "Documento": 583,
+            "Linea": 1,
+            "Cuenta": "43000117",
+            "Concepto": "2025-583-PROYECTOS CONSCIENTES SL. (TRAMO) (TRAMO)",
+            "Importe": 1642.06,
+            "Fecha": 20250531
+        }
+    ]
+}

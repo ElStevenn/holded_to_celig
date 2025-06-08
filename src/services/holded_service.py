@@ -5,7 +5,7 @@ import base64
 import requests
 import os
 
-from config.settings import HOLDED_ACCOUNTS
+from src.config.settings import HOLDED_ACCOUNTS
 
 
 class HoldedAPI:

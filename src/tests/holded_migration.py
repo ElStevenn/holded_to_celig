@@ -12,9 +12,15 @@ def base_64_to_pdf(b64: str) -> str:
     print(f"PDF saved as {out_path}")
     return out_path
 
+"""
+
+Esta es la primera llamada que se debe de realizar para la primera migración de datos de Holded a Cegid.
+"""
 
 async def obtain_holded_invoices():
+    # Introduce your Holded API key here
     holdedService = HoldedAPI("ca61cda9434830f1a913d4d8f2ab88db")
+
     cegidService = CegidAPI()
     async_service = AsyncService()
 
@@ -34,9 +40,8 @@ async def obtain_holded_invoices():
             "Archivo": pdf_b64,
         }
 
-
-        # await cegidService.crear_factura(transformed_invoice)
-        # await cegidService.add_documento_factura(data_to_new_pdf)
+        await cegidService.crear_factura(transformed)
+        await cegidService.add_documento_factura(data_to_new_pdf)
         print(data_to_new_pdf)
         base_64_to_pdf(pdf_b64)
 
@@ -45,6 +50,16 @@ async def obtain_holded_invoices():
 
 
     print("Invoices:", len(invoices))
+
+
+async def migrate_new_accounts():
+    """
+    This function is used to migrate new accounts from Holded to Cegid.
+    
+    """
+    async_service = AsyncService()
+    await async_service.fetch_holded_accounts()
+    print("Done.")
 
 async def main():
     await obtain_holded_invoices()

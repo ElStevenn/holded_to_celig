@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "credentials.json")
-
+print("Credentials file path:", CREDENTIALS_FILE)
 try:
     with open(CREDENTIALS_FILE, "r") as f:
         credentials = json.load(f)
@@ -67,9 +67,37 @@ def increment_offset(api_key):
         json.dump(data, f, indent=4)
 
 def get_offset(api_key: str) -> int:
+    try:
+        with open(CREDENTIALS_FILE, "r") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return 0
+
+    for acct in data.get("holded_accounts", []):
+        if acct.get("api_key") == api_key:
+            # devolvemos siempre el campo "offset"
+            return int(acct.get("offset", 0))
+    return 0
+
+# UTILS
+def get_offset_doc(nombre_empresa):
     with open(CREDENTIALS_FILE, "r") as f:
         data = json.load(f)
+
     for account in data["holded_accounts"]:
-        if account["api_key"] == api_key:
-            return account["offset"]
-    return 0 
+        if account.get("nombre_empresa") == nombre_empresa:
+            return account.get("offset_documento", 0)
+
+    return 0
+
+def update_offset_doc(nombre_empresa):
+    with open(CREDENTIALS_FILE, "r") as f:
+        data = json.load(f)
+
+    for account in data["holded_accounts"]:
+        if account.get("nombre_empresa") == nombre_empresa:
+            account["offset_documento"] = account.get("offset_documento", 0) + 1
+            break  # Stop once we've found and updated the correct company
+
+    with open(CREDENTIALS_FILE, "w") as f:
+        json.dump(data, f, indent=4)

@@ -8,3 +8,6 @@ __pycache__
 
 src/venv
 src/config/credentials.json
+
+ejemplo_factura_cejid.json
+ejemplo_factura_holded.json
