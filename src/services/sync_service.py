@@ -16,7 +16,6 @@ HOLDED_ACCOUNTS
 tz = pytz.timezone('Europe/Madrid')
 
 class AsyncService:
-
     def __init__(self):
         self.tz_mad = pytz.timezone("Europe/Madrid")
     
@@ -31,32 +30,59 @@ class AsyncService:
             h_api = HoldedAPI(acc["api_key"])
             cegid_api = CegidAPI(acc["codigo_empresa"])
             await cegid_api.renew_token_api_contabilidad()
-            tasks.append(self.process_account_invoices(h_api, cegid_api, acc["nombre_empresa"], acc["tipo_cuenta"]))
-        
+
+            for doc_type in acc["cuentas_a_migrar"]:
+                tasks.append(self.process_account_invoices(h_api, cegid_api, acc["nombre_empresa"], acc["tipo_cuenta"], doc_type))
+            break
+
         print(f"Total Holded accounts to process: {len(tasks)}")
         await asyncio.gather(*tasks)
 
 
-    async def process_account_invoices(self, holded_api: "HoldedAPI", cegid_api: "CegidAPI", nombre_empresa, tipo_cuenta: str):
+    async def process_account_invoices(self, holded_api: "HoldedAPI", cegid_api: "CegidAPI", nombre_empresa, tipo_cuenta: str, doc_type: str = "invoice"):
+        """ Processes invoices for a given Holded account and pushes them to Cegid."""
 
+        # Get curret offset and list invoices
         offset = get_offset(holded_api.api_key)
-        all_invoices = await holded_api.list_invoices()
-        print(f"Total invoices in Holded: {len(all_invoices)}")
-        print("offset of configuration ->", offset)
-        invoices = list(reversed(all_invoices))[offset -1:]
+        all_invoices = await holded_api.list_invoices(doc_type)
 
-        for inv_header in invoices:
+        invoices = list(reversed(all_invoices))[offset -1:]
+        max_per_migration = 5
+        for i, inv_header in enumerate(invoices):
+            print("Migration num: ", i)
+            if i >= max_per_migration:
+                break
+
             try:
                 # Detalles Holded
                 inv = await holded_api.invoice_details(inv_header["id"])
                 pdf = await holded_api.get_invoice_document_pdf(inv["id"])
                 cli = await holded_api.get_client(inv["contact"])
+            
+                # Search cuenta cliente, otherwise create it
+                cli_name = ' '.join(cli['name'].split()[:2])
+                cli_nif = cli.get('vatnumber', '').strip() or cli.get('code', '').strip()
+                print("Cliente: ", cli_name)
+                print("Cliente name fill: ", cli['name'])
+                cuenta_cliente = await cegid_api.search_cliente(nif=cli_nif, nombre_cliente=cli_name)
 
-                # Transformar & subir
+                print(f'Cuenta cliente encontrada: {cuenta_cliente}')
+                if not cuenta_cliente:
+                    print("Cuenta cliente no encontrada, creando...")
+                    # Create new client in Cegid
+                    cuenta_cliente = await cegid_api.add_subcuenta(
+                        name=cli.get('name'),
+                        nif=cli.get('vatnumber', '').strip() or cli.get('code', '').strip(),
+                        email=cli.get("email", ""),
+                        telefono=cli.get("mobile") or cli.get("phone"),
+                        bill_address=cli.get("billAddress", {})
+                    )
                 
-                # open('holded_invoice.json', 'w').write(json.dumps(inv, indent=4, ensure_ascii=False))
-                factura = await self.transform_invoice_holded_to_cegid(inv, cli, nombre_empresa)
-                
+                open('holded_invoice.json', 'w').write(json.dumps(inv, indent=4, ensure_ascii=False))
+                factura = await self.transform_invoice_holded_to_cegid(inv, cli, nombre_empresa, cuenta_cliente)
+                open('invoice.json', 'w').write(json.dumps(factura, indent=4, ensure_ascii=False))
+                open('output.pdf', 'wb').write(base64.b64decode(pdf))
+
                 if tipo_cuenta == "normal":
                     print(f'La factura {factura["Documento"]} sería creada ahora como normal')
                     await cegid_api.crear_factura(factura)
@@ -72,11 +98,10 @@ class AsyncService:
                     "NombreArchivo": f'{factura["Serie"]}-{factura["Documento"]}.pdf',
                     "Archivo":       pdf,
                 }
-                """
-                open('output.pdf', 'wb').write(base64.b64decode(pdf))
                 open('invoice_data.json', 'w').write(json.dumps(doc_meta, indent=4, ensure_ascii=False))
-                open('invoice.json', 'w').write(json.dumps(factura, indent=4, ensure_ascii=False))
-                """
+         
+                
+                
                 await cegid_api.add_documento_factura(doc_meta)
 
                 print(f'[OK] Subida factura {factura["NumeroFactura"]}')
@@ -87,8 +112,8 @@ class AsyncService:
                 # Esto SÍ se ejecuta aunque falle todo lo anterior
                 increment_offset(holded_api.api_key)
                 print(f'[DEBUG] Offset incrementado para API key {holded_api.api_key}')
+                # break
                 time.sleep(3)
-                
         return None
     
     # UTILITIES
@@ -98,270 +123,160 @@ class AsyncService:
         if not any(s["Codigo"] == serie for s in series):
             await cegid.add_serie(codigo=serie, descripcion=f"Serie auto {serie}")
 
+        
+    async def transform_invoice_holded_to_cegid(
+        self,
+        holded_invoice : dict,
+        holded_client  : dict,
+        nombre_empresa : str,
+        cuenta_cliente : str
+    ) -> dict:
 
-    async def ensure_cliente(self, subcuenta_id, cegid: "CegidAPI"):
-        """
-        comprueba que la subcuenta (cliente) existe en Cegid
-        """
+        sales_account = "70000000"
+        iva_reg_code  = "01"
 
-       
-    async def transform_invoice_holded_to_cegid(self, holded_invoice: dict, holded_client: dict, nombre_empresa: str) -> dict:
-        # Identificación y número Cegid
-        doc_number = get_offset_doc(nombre_empresa)
-        ts_date = datetime.fromtimestamp(holded_invoice["date"], self.tz_mad)
-        ejercicio = str(ts_date.year)
+        # --- Identificación ----------------------------------------------------
+        doc_number  = get_offset_doc(nombre_empresa)
+        ts_date     = datetime.fromtimestamp(holded_invoice["date"], self.tz_mad)
+        ejercicio   = str(ts_date.year)
+        fecha_int   = int(ts_date.strftime("%Y%m%d"))
+        fecha_venc  = int(datetime.fromtimestamp(
+                            holded_invoice.get("dueDate") or holded_invoice["date"],
+                            self.tz_mad).strftime("%Y%m%d"))
 
-        # Fechas en YYYYMMDD
-        fecha_int = int(ts_date.strftime("%Y%m%d"))
-        due_ts = holded_invoice.get("dueDate") or holded_invoice["date"]
-        fecha_venc_single = int(datetime.fromtimestamp(due_ts, self.tz_mad).strftime("%Y%m%d"))
+        contact_name   = holded_invoice.get("contactName", "").strip()
+        numero_factura = holded_invoice.get("docNumber") or ts_date.strftime("%Y%m%d")
 
-        # Bases e IVA
-        vat_groups = defaultdict(float)
+        #  Siempre serie-1 / FacturasEmitidas
+        serie         = "1"
+        tipo_asiento  = 1                       # 1 = Facturas expedidas
+        tipo_factura  = 2 if "maquila" in contact_name.lower() else 1
+
+        # --- Cabecera ----------------------------------------------------------
+        factura = {
+            "Ejercicio"      : ejercicio,
+            "Serie"          : serie,
+            "Documento"      : doc_number,
+            "TipoAsiento"    : tipo_asiento,
+            "Fecha"          : fecha_int,
+            "FechaFactura"   : fecha_int,
+            "CuentaCliente"  : cuenta_cliente,
+            "NumeroFactura"  : numero_factura,
+            "Descripcion"    : f"Factura de {contact_name}"[:40],
+            "TipoFactura"    : tipo_factura,
+            "NombreCliente"  : contact_name[:40],
+            "ClaveRegimenIva1": iva_reg_code,
+            "ProrrataIva"    : False,
+        }
+        if vat := holded_client.get("vatnumber"):
+            factura["CifCliente"] = vat
+
+        # --- Bases y cuotas de IVA --------------------------------------------
+        vat_groups  = defaultdict(float)
         for p in holded_invoice.get("products", []):
-            net = p["price"] * p["units"] * (1 - p.get("discount", 0) / 100)
+            net = p["price"] * p["units"] * (1 - p.get("discount", 0)/100)
             vat_groups[p["tax"]] += net
 
-        # Número de factura
-        raw_doc = holded_invoice.get("docNumber")
-        if raw_doc and raw_doc.isdigit():
-            numero_factura = raw_doc
-        else:
-            numero_factura = ts_date.strftime("%Y%m%d")
-
-        # Cuenta cliente
-        cuenta_cliente = holded_client["clientRecord"].get("num", "43009981")
-
-        # Tipo de factura según el contacto (“maquila”)
-        contact_name = holded_invoice.get("contactName", "")
-        tipo_factura = 2 if re.search(r"maquila", contact_name, re.IGNORECASE) else 1
-
-        # Serie y TipoAsiento según tipo de cliente/proveedor
-        if holded_client.get("type") == "client":
-            serie = "1"      # Factura expedida
-            tipo_asiento = 1
-        elif holded_client.get("type") == "supplier":
-            serie = "2"      # Factura recibida
-            tipo_asiento = 2
-        else:
-            serie = "1"
-            tipo_asiento = 0
-
-        # Descripción
-        desc_orig = holded_invoice.get("desc")
-        if desc_orig:
-            descripcion = desc_orig
-        else:
-            descripcion = f"Factura de {contact_name} Nº {numero_factura}"
-
-        if len(descripcion) > 40:
-            descripcion = descripcion[:40]
-
-
-        # Construcción preliminar de la factura
-        factura = {
-            "Ejercicio": ejercicio,
-            "Serie": serie,
-            "Documento": doc_number,
-            "TipoAsiento": tipo_asiento,
-            "Fecha": fecha_int,
-            "FechaFactura": fecha_int,
-            "CuentaCliente": self.ajusta_cuenta(cuenta_cliente),
-            "NumeroFactura": numero_factura,
-            "Descripcion": descripcion,
-            "TipoFactura": tipo_factura,
-            "NombreCliente": contact_name,
-            "ClaveRegimenIva1": "01",
-            "ProrrataIva": False,
-        }
-        if holded_client.get("vatnumber"):
-            factura["CifCliente"] = holded_client["vatnumber"]
-
-        # Calcular Bases y cuotas de IVA
         base_total = iva_total = 0.0
         for idx, rate in enumerate(sorted(vat_groups), 1):
-            base = round(vat_groups[rate], 2)
+            base  = round(vat_groups[rate], 2)
             cuota = round(base * rate / 100, 2)
             factura[f"BaseImponible{idx}"] = base
             factura[f"PorcentajeIVA{idx}"] = rate
-            factura[f"CuotaIVA{idx}"] = cuota
+            factura[f"CuotaIVA{idx}"]      = cuota
             if idx > 1:
-                factura[f"ClaveRegimenIva{idx}"] = "01"
+                factura[f"ClaveRegimenIva{idx}"] = iva_reg_code
             base_total += base
-            iva_total += cuota
-        factura["TotalFactura"] = round(base_total + iva_total, 2)
+            iva_total  += cuota
 
-        # Vencimientos (único vs. múltiple)
-        md = holded_invoice.get("multipledueDate")
-        if isinstance(md, dict):
-            multi = [md]
-        elif isinstance(md, list):
-            multi = md
-        else:
-            multi = []
+        total_factura               = round(base_total + iva_total, 2)
+        factura["TotalFactura"]     = total_factura
+        factura["ImporteCobrado"]   = round(holded_invoice.get("paymentsTotal", 0), 2)
 
-        tipo_venc = 2 if multi else 1
-        factura["TipoVencimiento"] = tipo_venc
-
-        vencimientos = []
-        if multi:
-            for idx, plazo in enumerate(multi, start=1):
-                # defensivamente, coger fecha sólo si viene bien
-                fecha_plazo = plazo.get("date")
-                if isinstance(fecha_plazo, (int, float)):
-                    fv = int(datetime.fromtimestamp(fecha_plazo, self.tz_mad).strftime("%Y%m%d"))
-                else:
-                    fv = fecha_int
-                importe = round(plazo.get("amount", factura["TotalFactura"]), 2)
-                vencimientos.append({
-                    "Ejercicio": ejercicio,
-                    "Serie": serie,
-                    "Documento": doc_number,
-                    "NumeroVencimiento": idx,
-                    "FechaFactura": fecha_int,
-                    "CuentaCliente": self.ajusta_cuenta(cuenta_cliente),
-                    "NumeroFactura": numero_factura,
-                    "FechaVencimiento": fv,
-                    "Importe": importe,
-                    "CodigoTipoVencimiento": 1,
-                })
-        else:
-            vencimientos.append({
-                "Ejercicio": ejercicio,
-                "Serie": serie,
-                "Documento": doc_number,
-                "NumeroVencimiento": 1,
-                "FechaFactura": fecha_int,
-                "CuentaCliente": self.ajusta_cuenta(cuenta_cliente),
-                "NumeroFactura": numero_factura,
-                "FechaVencimiento": fecha_venc_single,
-                "Importe": factura["TotalFactura"],
-                "CodigoTipoVencimiento": 1,
-            })
-
-        factura["Vencimientos"] = vencimientos
-
-        # Apuntes mínimos
-        concepto = f"{ejercicio}-{doc_number}-{contact_name}"
-        if len(concepto) > 50:
-            concepto = concepto[:50]
-
-        factura["Apuntes"] = [{
-            "Ejercicio": ejercicio,
-            "Serie": serie,
-            "Documento": doc_number,
-            "Linea": 1,
-            "Cuenta": self.ajusta_cuenta(cuenta_cliente),
-            "Concepto": concepto,
-            "Importe": factura["TotalFactura"],
-            "Fecha": fecha_int,
+        # --- Vencimiento único -------------------------------------------------
+        factura["TipoVencimiento"] = 1
+        factura["Vencimientos"] = [{
+            "Ejercicio"        : ejercicio,
+            "Serie"            : serie,
+            "Documento"        : doc_number,
+            "NumeroVencimiento": 1,
+            "FechaFactura"     : fecha_int,
+            "CuentaCliente"    : cuenta_cliente,
+            "NumeroFactura"    : numero_factura,
+            "FechaVencimiento" : fecha_venc,
+            "Importe"          : total_factura,
+            "CodigoTipoVencimiento": 1
         }]
 
-        # Actualizar offset del documento
+        # --- UN solo apunte: base total ---------------------------------------
+        factura["Apuntes"] = [{
+            "Ejercicio" : ejercicio,
+            "Serie"     : serie,
+            "Documento" : doc_number,
+            "Linea"     : 1,
+            "Cuenta"    : sales_account,
+            "Concepto"  : "Ventas maquila (base total)"[:50],
+            "Fecha"     : fecha_int,
+            "Debe"      : 0.0,
+            "Haber"     : round(base_total, 2)   # 307,16 en tu ejemplo
+        }]
+
         update_offset_doc(nombre_empresa)
-
         return factura
-    
 
+    # ---------------------------------------------------------------------------
+    # 2)  Cegid (números)  ➜  FacturaData (textos + Debe/Haber)
+    # ---------------------------------------------------------------------------
     def transform_invoice_data(self, invoice: dict) -> dict:
-        """
-        Transforms Holded-derived invoice dict into API-ready FacturaData dict.
-        """
-        # Mapping definitions
-        tipo_asiento_map = {
-            1: "FacturasEmitidas",
-            2: "FacturasRecibidas",
-            0: "Asiento",
-        }
-        # Default TipoFactura mapping to OpInteriores for any numeric code
-        tipo_factura_map = {
-            1: "OpInteriores",
-            2: "OpInteriores",  # adjust if different mapping needed
-        }
-        
-        # Start building result
+        tipo_asiento_map = {1: "FacturasEmitidas", 2: "FacturasRecibidas", 0: "Asiento"}
+        tipo_factura_map = {1: "OpInteriores", 2: "OpInteriores"}   # de momento los dos mapean igual
+
         result = {
-            "Ejercicio": invoice["Ejercicio"],
-            "Serie": invoice["Serie"],
-            "Documento": invoice["Documento"],
-            "TipoAsiento": tipo_asiento_map.get(invoice["TipoAsiento"], "Asiento"),
-            "FechaFactura": invoice["FechaFactura"],
-            "CuentaCliente": str(invoice["CuentaCliente"]),
-            "NumeroFactura": invoice["NumeroFactura"],
-            "Descripcion": invoice["Descripcion"],
-            "TotalFactura": invoice["TotalFactura"],
-            "TipoFactura": tipo_factura_map.get(invoice["TipoFactura"], "OpInteriores"),
-            "TipoVencimiento": str(invoice["TipoVencimiento"]),
+            "Ejercicio"      : invoice["Ejercicio"],
+            "Serie"          : invoice["Serie"],
+            "Documento"      : invoice["Documento"],
+            "TipoAsiento"    : tipo_asiento_map[invoice["TipoAsiento"]],
+            "Fecha"          : invoice["Fecha"],
+            "FechaFactura"   : invoice["FechaFactura"],
+
+            "CuentaCliente"  : str(invoice["CuentaCliente"]),
+            "NumeroFactura"  : invoice["NumeroFactura"],
+            "Descripcion"    : invoice["Descripcion"],
+            "TipoFactura"    : tipo_factura_map[invoice["TipoFactura"]],
+            "TotalFactura"   : invoice["TotalFactura"],
+            "ImporteCobrado" : invoice.get("ImporteCobrado", 0.0),
+            "TipoVencimiento": invoice["TipoVencimiento"],
         }
-        
-        # Copy BaseImponible, PorcentajeIVA, CuotaIVA fields dynamically
-        for idx in range(1, 5):
-            bi_key = f"BaseImponible{idx}"
-            pi_key = f"PorcentajeIVA{idx}"
-            ci_key = f"CuotaIVA{idx}"
-            if bi_key in invoice:
-                result[bi_key] = invoice[bi_key]
-                result[pi_key] = invoice[pi_key]
-                result[ci_key] = invoice[ci_key]
-        
-        # Transform Vencimientos list
-        transformed_venc = []
-        for v in invoice.get("Vencimientos", []):
-            tv = {
-                "Ejercicio": v["Ejercicio"],
-                "Serie": v["Serie"],
-                "Documento": v["Documento"],
-                "NumeroVencimiento": v["NumeroVencimiento"],
-                "FechaFactura": v["FechaFactura"],
-                "CuentaCliente": str(v["CuentaCliente"]),
-                "NumeroFactura": v["NumeroFactura"],
-                "FechaVencimiento": v["FechaVencimiento"],
-                "Importe": v["Importe"],
-                "CodigoTipoVencimiento": v["CodigoTipoVencimiento"],
-            }
-            transformed_venc.append(tv)
-        result["Vencimientos"] = transformed_venc
-        
-        # Transform Apuntes list
-        transformed_apunts = []
+
+        # ▸ Bases / Cuotas / % IVA (1-4)
+        for i in range(1, 5):
+            for k in ("BaseImponible", "PorcentajeIVA", "CuotaIVA"):
+                key = f"{k}{i}"
+                if key in invoice:
+                    result[key] = invoice[key]
+
+        # ▸ Vencimientos
+        result["Vencimientos"] = invoice.get("Vencimientos", [])
+
+        # ▸ Apuntes  (convertimos Debe/Haber)
+        res_apuntes = []
         for a in invoice.get("Apuntes", []):
-            ta = {
+            res_apuntes.append({
                 "Ejercicio": a["Ejercicio"],
-                "Serie": a["Serie"],
+                "Serie"    : a["Serie"],
                 "Documento": a["Documento"],
-                "Linea": a["Linea"],
-                "Cuenta": str(a["Cuenta"]),
-                "Concepto": a["Concepto"],
-                "Importe": a["Importe"],
-                "Fecha": a["Fecha"],
-            }
-            transformed_apunts.append(ta)
-        result["Apuntes"] = transformed_apunts
-        
+                "Linea"    : a["Linea"],
+                "Cuenta"   : str(a["Cuenta"]),
+                "Concepto" : a.get("Concepto", ""),
+                "Fecha"    : a["Fecha"],
+                "Importe"  : a["Haber"] if a["Haber"] else a["Debe"],
+                "TipoImporte": 2 if a["Haber"] else 1
+            })
+        result["Apuntes"] = res_apuntes
         return result
 
-    def ajusta_cuenta(self, cuenta):
-        """ Ajusta el número de cuenta a 8 dígitos según las reglas de Cegid."""
-        s = str(cuenta)
 
-        if len(s) > 8:
-            resultado = []
-            ceros_a_quitar = len(s) - 8
-            for c in s:
-                if ceros_a_quitar and c == "0":
-                    ceros_a_quitar -= 1
-                    continue
-                resultado.append(c)
-            s = "".join(resultado)
-
-        if len(s) > 8:
-            s = s[-8:]
-
-        if len(s) < 8:
-            s = s.zfill(8)
-
-        return s
-
+    
     async def push_invoices_to_cegid(self, transformed_invoices, cegid_api: "CegidAPI"):
         for inv in transformed_invoices:
             try:
@@ -480,6 +395,7 @@ async def main_test():
         }
     '''
     # cegid_factura = await async_service.transform_invoice_holded_to_cegid(holded_invoice=holded_invoice, holded_client=holded_client); print(cegid_factura)
+
     async_service = await async_service.fetch_holded_accounts(); print(async_service)
 
 if __name__ == "__main__":

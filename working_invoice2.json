@@ -1,0 +1,56 @@
+{
+  "Ejercicio": "2025",
+  "Serie": "1",
+  "Documento": 506,
+  "TipoAsiento": "FacturasEmitidas",
+  "Fecha": 20250102,
+  "FechaFactura": 20250102,
+
+  "CuentaCliente": "43000916",
+  "NumeroFactura": "20250102",
+  "Descripcion": "Factura PLENITUD DE LA VEGA",
+  "TipoFactura": "OpInteriores",
+  "NombreCliente": "PLENITUD DE LA VEGA",
+
+  "ClaveRegimenIva1": "01",
+  "BaseImponible1": 240.57,
+  "PorcentajeIVA1": 10,
+  "CuotaIVA1": 24.06,
+
+  "ClaveRegimenIva2": "01",
+  "BaseImponible2": 66.59,
+  "PorcentajeIVA2": 21,
+  "CuotaIVA2": 13.98,
+
+  "TotalFactura": 345.20,
+
+  "TipoVencimiento": 1,
+  "Vencimientos": [
+    {
+      "Ejercicio": "2025",
+      "Serie": "1",
+      "Documento": 506,
+      "NumeroVencimiento": 1,
+      "FechaFactura": 20250102,
+      "CuentaCliente": "43000916",
+      "NumeroFactura": "20250102",
+      "FechaVencimiento": 20250103,
+      "Importe": 345.20,
+      "CodigoTipoVencimiento": 1
+    }
+  ],
+
+  "Apuntes": [
+    {
+      "Ejercicio": "2025",
+      "Serie": "1",
+      "Documento": 506,
+      "Linea": 1,
+      "Cuenta": "70000000",
+      "Concepto": "Ventas maquila (base total)",
+      "Fecha": 20250102,
+      "Importe": 307.16,
+      "TipoImporte": 2
+    }
+  ]
+}

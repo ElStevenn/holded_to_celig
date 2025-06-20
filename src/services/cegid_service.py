@@ -4,6 +4,9 @@ from datetime import datetime
 import json
 import base64
 import time
+import re
+import unicodedata
+from src.config.settings import update_cegid_subcuenta_offset, get_cegid_subcuenta_offset
 
 from src.config.settings import (
         USERNAME,
@@ -21,10 +24,12 @@ from src.config.settings import (
 """API class to interactuate with Holded"""
 
 class CegidAPI:
+    _subcuentas_cache = None
+    _subcuentas_lock  = asyncio.Lock()
+    
     def __init__(self, cod_empresa):
         self.api_erp = "http://apierp.diezsoftware.com"
         self.api_con = "https://apicon.diezsoftware.com"
-        self.api_rec = "https://apirec.diezsoftware.com"
         self.username = USERNAME
         self.password = PASSWORD
         self.cod_empresa = cod_empresa
@@ -37,9 +42,9 @@ class CegidAPI:
         # API ERP
         self.client_id_erp = CLIENT_ID_ERP
         self.client_secret_erp = CLIENT_SECRET_ERP
-        self.auth_token_erp = token_erp()
+        # self.auth_token_erp = token_erp()
 
-    # Token nenew
+    # RENEW TOKENS
     async def renew_token_erp(self):
         """Renews token for the ERP API"""
         url = self.api_erp + "/api/auth/login"
@@ -70,12 +75,9 @@ class CegidAPI:
                     print("Auth token not found in the response")
 
     async def renew_token_api_contabilidad(self):
+        """Renews token for the Contabilidad API"""
         url = self.api_con + "/token"
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            # "Cookie": "ARRAffinity=d4e7f1765b153fe7b523c609e183d777b6e3886e1149a117ca33ca6afd0901cd"
-        }
-
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         body = {
             "grant_type": "password",
             "client_secret": self.client_secret_con,
@@ -84,22 +86,18 @@ class CegidAPI:
             "cod_empresa": str(self.cod_empresa),
             "client_id": self.client_id_con
         }
-
-        
         async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, data=body, headers=headers) as res:
-    
-                    if res.status == 200:
-                        data = await res.json()
-                        acces_token = data.get("access_token")
+            async with session.post(url, data=body, headers=headers) as res:
+                if res.status == 200:
+                    data = await res.json()
+                    acces_token = data.get("access_token")
+                    if acces_token:
                         update_token_con(acces_token)
-                    else:
-                        print(f"Error: {res.status} - {await res.text()}")        
-            except aiohttp.ClientError as e:
-                print(f"Request failed: {e}")
+                        self.auth_token_con = acces_token
+                else:
+                    return None
                    
-    # Client Operatooms
+    # CLIENT OPERATIONS
     async def get_clientes(self):
         url = self.api_con + "/api/clientes"
         headers = {
@@ -129,52 +127,50 @@ class CegidAPI:
 
                 return response_json.get("Datos")
 
-    async def create_cliente(self, nombre_fiscal, nombre_comercial, cif, direccion, codigo_postal, poblacion, provincia, telefono, aplicarRetencion: bool, aplicar_recargo_equivalencia: bool, grupo_ingresos, fax, cliente_generico: bool, no_incluir347: bool, no_activo: bool, pais, mail, empresa: int, tipo_identificador: int, criterio_caja: bool):
-        url = self.api_con + "/api/clientes/add"
-        headers = {
-            "Authorization": f"Bearer {self.auth_token_con}",
-            "Content-Type": "application/json"
-        }
+    async def _subcuentas(self):
+        async with self._subcuentas_lock:
+            if self._subcuentas_cache is None:
+                c1, c2 = await asyncio.gather(
+                    self.get_subcuentas(1),
+                    self.get_subcuentas(2)
+                )
+                self._subcuentas_cache = [c for c in (c1 or []) + (c2 or []) if c]
+        return self._subcuentas_cache
 
-        clientes = await self.get_clientes()
-        codigo = int(clientes[-1]['Codigo'] +1)
+    async def search_cliente(self, nif, nombre_cliente):
+        cuentas = await self._subcuentas()
+        if not cuentas:
+            return None
 
-        body = {
-            "Codigo": codigo,
-            "NombreFiscal": nombre_fiscal,
-            "NombreComercial": nombre_comercial,
-            "CIF": cif,
-            "Direccion": direccion,
-            "CodigoPostal": codigo_postal,
-            "Poblacion": poblacion,
-            "Provincia": provincia,
-            "Telefono": telefono,
-            "AplicarRetencion": aplicarRetencion,
-            "AplicarRecargoEquivalencia": aplicar_recargo_equivalencia,
-            "GrupoIngresos": grupo_ingresos,
-            "Fax": fax,
-            "ClienteGenerico": cliente_generico,
-            "NoIncluir347": no_incluir347,
-            "NoActivo": no_activo,
-            "Pais": pais,
-            "Mail": mail,
-            "Empresa": empresa,
-            "TipoIdentificador": tipo_identificador,
-            "CriterioCaja": criterio_caja
-        }
+        def norm(t):
+            if not t:
+                return ""
+            t = unicodedata.normalize("NFKD", t)
+            t = t.encode("ascii", "ignore").decode()
+            return re.sub(r"\s+", " ", t).strip().lower()
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url=url, json=body, headers=headers) as res:
-                if res.status == 401:
-                    await self.renew_token_api_contabilidad()
-                    return await self.create_cliente(nombre_fiscal, nombre_comercial, cif, direccion, codigo_postal, poblacion, provincia, telefono, aplicarRetencion, aplicar_recargo_equivalencia, grupo_ingresos, fax, cliente_generico, no_incluir347, no_activo, pais, mail, empresa, tipo_identificador, criterio_caja)
-                elif res.status != 200:
-                    return None
-                
-                data = await res.json()
-                print(data)
+        def clean(n):
+            return re.sub(r"[^A-Z0-9]", "", (n or "").upper())
+
+        if nif:
+            tn = clean(nif)
+            for c in cuentas:
+                if clean(c.get("NIF")) == tn:
+                    return c.get("Codigo")
+
+        if nombre_cliente:
+            tgt = norm(nombre_cliente)
+            for c in cuentas:
+                if norm(c.get("Descripcion")).startswith(tgt) or norm(c.get("NombreComercial")).startswith(tgt):
+                    return c.get("Codigo")
+            for c in cuentas:
+                if tgt in norm(c.get("Descripcion")) or tgt in norm(c.get("NombreComercial")):
+                    return c.get("Codigo")
+
+        return None
+
     
-    # Invoices Operations
+    # INVOICE OPERATIONS
     async def crear_factura(self, invoice: dict):
         url = self.api_con + "/api/facturas/add"
         body = invoice
@@ -330,7 +326,7 @@ class CegidAPI:
 
                 return response_json
 
-    # Series
+    # SERIES
     async def get_series(self):
         url = self.api_con + "/api/series"
         headers = {
@@ -382,29 +378,43 @@ class CegidAPI:
                 data = await res.json()
                 print("Response -> ", data )
 
-    # Subcuentas
-    async def get_subcuentas(self):
-        url = self.api_con + "/api/subcuentas?$skip=100"
-        headers = {
-            "Authorization": f"Bearer {self.auth_token_con}",
-            "Content-Type": "application/json"
-        }
+    # SUBCUENTAS (cientes)
+    async def get_subcuentas(self, tipo_subcuenta: int = 1, top: int = 200):
+        rows, page, total = [], 0, None
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as res:
-                 
-                response_text = await res.text()
+            while True:
+                url = (
+                    f"{self.api_con}/api/subcuentas"
+                    f"?$filter=TipoSubcuenta eq '{tipo_subcuenta}'"
+                    f"&$top={top}"
+                    f"&$skip={page}"
+                )
+                headers = {
+                    "Authorization": f"Bearer {self.auth_token_con}",
+                    "Content-Type": "application/json",
+                }
+                async with session.get(url, headers=headers) as res:
+                    if res.status == 401:
+                        await self.renew_token_api_contabilidad()
+                        continue
+                    if res.status != 200:
+                        return None
+                    payload = await res.json()
+                if total is None:
+                    total = payload.get("ResultadosTotales", 0)
+                datos = payload.get("Datos", [])
+                if not datos:
+                    break
+                rows.extend(datos)
+                if len(rows) >= total:
+                    break
+                page += 1
+                await asyncio.sleep(0.5)
+        return rows
 
-                try:
-                    response_json = json.loads(response_text)  
-                except json.JSONDecodeError:
-                    print(f"Failed to decode JSON. Raw response:\n{response_text}")
-                    return None
 
-                if res.status != 200:
-                    return response_json
 
-                return response_json.get('Datos', None)
-
+    
     async def get_subcuenta(self, subcuenta: str):
         url = self.api_con + f"api/subcuentas/subcuenta/{subcuenta}"
         headers = {
@@ -427,19 +437,92 @@ class CegidAPI:
 
                 return response_json.get('Datos', None)
 
-    async def add_subecuenta(self, codigo: str, description: str, tipo: str):
-        pass
+    async def add_subcuenta(self, name: str, nif: str | None = None, email: str | None = None, telefono: str | None = None, bill_address: dict | None = None):
+        """Add new subcuenta (client) to the Cegid API"""
 
+        def _safe_field(text: str, limit: int) -> str:
+            """Return `text` trimmed to `limit` characters (or empty if None)."""
+            return (text or "")[:limit].strip()
+
+
+        # Get new codigo based on the last subcuenta
+        cuentas = await self.get_subcuentas(1)
+        
+        offset = get_cegid_subcuenta_offset()
+        new_code = str(int(43001000) + offset).zfill(6)
+        update_cegid_subcuenta_offset()
+
+        # Data to create the new subcuenta
+        data = {
+            "Codigo": new_code,
+            "Descripcion": name,
+            "CuentaContable": 430,
+            "NIF": nif or "",
+            "Email": email or "",
+            "Telefonos": telefono or "",
+            "TipoSubcuenta": 1
+        }
+
+        if bill_address:
+            address = bill_address.get("address", "")
+            if len(address) <= 60:
+                data["DireccionCompleta"] = address
+
+            data.update({
+                "CodigoPostal" : bill_address.get("postalCode", "")[:5],
+                "Poblacion"    : bill_address.get("city", "")[:40],
+                "Provincia"    : bill_address.get("province", "")[:40],
+                "Pais"         : (bill_address.get("country_code") or "")[:2].upper()
+            })
+
+        url = f"{self.api_con}/api/subcuentas/add"
+        headers = {
+            "Authorization": f"Bearer {self.auth_token_con}",
+            "Content-Type": "application/json",
+        }
+
+        print("Data", data, "new_code", new_code)
+        async with aiohttp.ClientSession() as session:
+            attempts = 0
+            code_int = int(new_code)
+            while attempts < 10:
+                data["Codigo"] = str(code_int).zfill(len(new_code))
+                async with session.post(url, headers=headers, json=data) as res:
+                    if res.status == 401:
+                        await self.renew_token_api_contabilidad()
+                        continue  # retry same code after token refresh
+
+                    if res.status == 200:
+                        return data["Codigo"]
+
+                    detail = await res.json()
+                    # if “already exists” error, bump code and retry
+                    msgs = [m for v in detail.get("ModelState", {}).values() for m in v]
+                    if any("Ya existe una subcuenta con el código" in m for m in msgs):
+                        code_int += 1
+                        attempts += 1
+                        continue
+
+                    # other errors: bail out
+                    raise RuntimeError(f"Add subcuenta failed ({res.status}): {detail}")
+
+            # exhausted retries
+            return None
+
+            
 async def main_test():
-    cegid = CegidAPI()
+    cegid = CegidAPI("72")
     await cegid.renew_token_api_contabilidad()
 
 
-    facturas = await cegid.get_subcuentas(); print(facturas)
-    for factura in facturas:
-        print(factura['Codigo'], factura['Descripcion'])
-    print(len(facturas))
-    # print(facturas)
+    # facturas = await cegid.get_subcuentas(1)
+    # print(len(facturas), "subcuentas obtenidas")
+
+    for _ in range(10):
+        cliente_id = await cegid.search_cliente("", "GARCIA PRIETO"); print("Cliente ID", cliente_id)
+    
+
+    # pls = await cegid.add_subcuenta("Miguel Francisco", "14953199W", "zurrom@yahoo.es", "656709940", {'address': 'Calle D. Rodolfo Llopis, 5 2C', 'city': 'Cuenca', 'postalCode': '16002', 'province': 'Cuenca', 'country': 'España', 'countryCode': 'ES', 'info': ''})
 
 if __name__ == "__main__":
     asyncio.run(main_test())

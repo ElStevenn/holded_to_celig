@@ -15,8 +15,8 @@ class HoldedAPI:
         self.docType_invoice = "invoice"
 
 
-    async def list_invoices(self):
-        url = self.base_url + "/invoicing/v1/documents/invoice"  
+    async def list_invoices(self, doc_type: str):
+        url = self.base_url + f"/invoicing/v1/documents/{doc_type}"  
 
         headers = {
             "Accept": "application/json",

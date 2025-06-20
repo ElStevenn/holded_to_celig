@@ -1,43 +1,20 @@
 {
-    "id": "683c778829d6829771007c08",
-    "contact": "652fef2081258b5a4101462d",
-    "contactName": "PROYECTOS CONSCIENTES SL. (TRAMO) (TRAMO)",
+    "id": "6853ed8c0263dd813f0eae47",
+    "contact": "6435a829ff799efc3901bbc8",
+    "contactName": "BODEGA TIO TORIA SL.",
     "desc": "",
-    "date": 1748642400,
-    "dueDate": 1748728800,
-    "multipledueDate": {
-        "date": 1748728800,
-        "amount": 1642.0600000000002
-    },
+    "date": 1750284000,
+    "dueDate": null,
+    "multipledueDate": [],
     "forecastDate": null,
     "notes": "",
     "tags": [],
     "products": [
         {
-            "name": "CV 25",
-            "desc": "AOV ValdeVellisca zafra 25 litros",
-            "price": 173.75,
-            "units": 6,
-            "projectid": null,
-            "tax": 4,
-            "taxes": [
-                "s_iva_4"
-            ],
-            "tags": [],
-            "discount": 0,
-            "retention": 0,
-            "weight": 0,
-            "costPrice": 0,
-            "sku": "L2506",
-            "account": "64227fd364fcfe702b0945ba",
-            "productId": "6426d3b54b2df5bbb50fedef",
-            "variantId": "6426d3b54b2df5bbb50fedf0"
-        },
-        {
             "name": "OCT 500",
             "desc": "AOVE Ecológico En Octubre de Olivares de Altomira 500ml",
-            "price": 14.9,
-            "units": 36,
+            "price": 16.32,
+            "units": 12,
             "projectid": null,
             "tax": 4,
             "taxes": [
@@ -52,30 +29,40 @@
             "account": "64227fd364fcfe702b0945ba",
             "productId": "64270002fe2674434f07a821",
             "variantId": "64270002fe2674434f07a822"
+        },
+        {
+            "name": "VDVE 5",
+            "desc": "AOVE Ecológico ValdeVellisca 5l",
+            "price": 57.69231,
+            "units": 3,
+            "projectid": null,
+            "tax": 4,
+            "taxes": [
+                "s_iva_4"
+            ],
+            "tags": [],
+            "discount": 0,
+            "retention": 0,
+            "weight": 0,
+            "costPrice": 0,
+            "sku": "L250404036",
+            "account": "64227fd364fcfe702b0945ba",
+            "productId": "6426ffac29de31d2f708d0de",
+            "variantId": "6426ffac29de31d2f708d0df"
         }
     ],
-    "tax": 63.16,
-    "subtotal": 1578.9,
+    "tax": 14.75,
+    "subtotal": 368.92,
     "discount": 0,
-    "total": 1642.0600000000002,
+    "total": 383.67,
     "language": "es",
     "status": 0,
-    "customFields": [
-        {
-            "field": "Factura simplificada",
-            "value": "T-2025-091"
-        }
-    ],
-    "docNumber": "A-2025-082",
+    "customFields": [],
+    "docNumber": "A-2025-090",
     "currency": "eur",
     "currencyChange": 1,
-    "paymentMethodId": "64227fce64fcfe702b094536",
     "paymentsTotal": 0,
-    "paymentsPending": 1642.06,
+    "paymentsPending": 383.67,
     "paymentsRefunds": 0,
-    "shipping": "hidden",
-    "from": {
-        "id": "683c778829d6829771007c08",
-        "docType": "salesreceipt"
-    }
+    "shipping": "hidden"
 }

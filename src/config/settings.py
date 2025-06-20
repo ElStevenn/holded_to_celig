@@ -101,3 +101,19 @@ def update_offset_doc(nombre_empresa):
 
     with open(CREDENTIALS_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
+def get_cegid_subcuenta_offset():
+    with open(CREDENTIALS_FILE, "r") as f:
+        data = json.load(f)
+
+    offset = data["cegid"]["subcuenta_offset"]
+    return offset
+
+def update_cegid_subcuenta_offset():
+    with open(CREDENTIALS_FILE, "r") as f:
+        data = json.load(f)
+
+    data["cegid"]["subcuenta_offset"] += 1
+
+    with open(CREDENTIALS_FILE, "w") as f:
+        json.dump(data, f, indent=4)

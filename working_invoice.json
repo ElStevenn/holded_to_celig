@@ -1,0 +1,52 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "1",
+    "Documento": 505,
+    "TipoAsiento": "FacturasEmitidas",
+    "Fecha": 20250612,
+    "FechaFactura": 20250612,
+  
+    "CuentaCliente": "43000592",
+    "NumeroFactura": "20250612",
+    "Descripcion": "Factura de GARCIA PRIETO CAFE SL.",
+    "TipoFactura": "OpInteriores",
+    "NombreCliente": "GARCIA PRIETO CAFE SL. (Bucólico CAFE)",
+    "ClaveRegimenIva1": "01",
+  
+    "BaseImponible1": 104.70,
+    "PorcentajeIVA1": 4,
+    "CuotaIVA1": 4.19,
+    "TotalFactura": 108.89,
+    "ImporteCobrado": 108.89,
+
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 505,
+        "NumeroVencimiento": 1,
+        "FechaFactura": 20250612,
+        "CuentaCliente": "43000592",
+        "NumeroFactura": "20250612",
+        "FechaVencimiento": 20250612,
+        "Importe": 108.89,
+        "CodigoTipoVencimiento": 1
+      }
+    ],
+  
+    "Apuntes": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 505,
+        "Linea": 1,
+        "Cuenta": "70000000",
+        "Concepto": "Ventas mercaderías",
+        "Fecha": 20250612,
+        "Importe": 104.70,
+        "TipoImporte": 2
+      }
+    ]
+  }
+  
