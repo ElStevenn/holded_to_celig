@@ -1,0 +1,53 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "1",
+    "Documento": 600,
+    "TipoAsiento": "FacturasEmitidas",
+    "Fecha": 20250531,
+    "FechaFactura": 20250531,
+  
+    "CuentaCliente": "43000006",
+    "NumeroFactura": "O-2025-012",
+    "Descripcion": "Factura de HOSPEDERIA FINCA LA ESTACADA",
+    "TipoFactura": "OpInteriores",
+    "NombreCliente": "HOSPEDERIA FINCA LA ESTACADA 1944 SL",
+  
+    "ClaveRegimenIva1": "01",
+    "BaseImponible1": 9.92,
+    "PorcentajeIVA1": 21,
+    "CuotaIVA1": 2.08,
+  
+    "TotalFactura": 12.00,
+    "ImporteCobrado": 12.00,
+  
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 600,
+        "NumeroVencimiento": 1,
+        "FechaFactura": 20250531,
+        "CuentaCliente": "43000006",
+        "NumeroFactura": "O-2025-012",
+        "FechaVencimiento": 20250531,
+        "Importe": 12.00,
+        "CodigoTipoVencimiento": 1
+      }
+    ],
+  
+    "Apuntes": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 600,
+        "Linea": 1,
+        "Cuenta": "70000000",
+        "Concepto": "Ventas mercaderías",
+        "Fecha": 20250531,
+        "Importe": 9.92,
+        "TipoImporte": 2
+      }
+    ]
+  }
+  

@@ -1,19 +1,82 @@
 {
-    "id": "6853ed8c0263dd813f0eae47",
-    "contact": "6435a829ff799efc3901bbc8",
-    "contactName": "BODEGA TIO TORIA SL.",
+    "id": "68624d47292f38e24f0e2379",
+    "contact": "642742130bb913013402d8e2",
+    "contactName": "PINWIS SL. (Maroma)",
     "desc": "",
-    "date": 1750284000,
-    "dueDate": null,
-    "multipledueDate": [],
+    "date": 1751234400,
+    "dueDate": 1756418400,
+    "multipledueDate": {
+        "date": 1756418400,
+        "amount": 1542.4299999999998
+    },
     "forecastDate": null,
     "notes": "",
     "tags": [],
     "products": [
         {
-            "name": "OCT 500",
-            "desc": "AOVE Ecológico En Octubre de Olivares de Altomira 500ml",
-            "price": 16.32,
+            "name": "AOVE 25",
+            "desc": "AOVE Ecológico Olivares de Altomira 25ml (T-2025-117\t02/06/25)\n",
+            "price": 0.52,
+            "units": 520,
+            "projectid": null,
+            "tax": 4,
+            "taxes": [
+                "s_iva_4"
+            ],
+            "tags": [],
+            "discount": 0,
+            "retention": 0,
+            "weight": 0,
+            "costPrice": 0,
+            "sku": "L250217047",
+            "account": "64227fd364fcfe702b0945ba",
+            "productId": "642700dc3d11652d2d0a34c5",
+            "variantId": "642700dc3d11652d2d0a34c6"
+        },
+        {
+            "name": "VDVV 5",
+            "desc": "AOV Ecológico ValdeVellisca 5l (T-2025-121\t08/06/25)\n",
+            "price": 34.9,
+            "units": 9,
+            "projectid": null,
+            "tax": 4,
+            "taxes": [
+                "s_iva_4"
+            ],
+            "tags": [],
+            "discount": 0,
+            "retention": 0,
+            "weight": 0,
+            "costPrice": 0,
+            "sku": "L2408EV25041",
+            "account": "64227fd364fcfe702b0945ba",
+            "productId": "6426ff225f758ef8b905a33b",
+            "variantId": "6426ff225f758ef8b905a33c"
+        },
+        {
+            "name": "AOVE 25",
+            "desc": "AOVE Ecológico Olivares de Altomira 25ml (T-2025-136\t15/06/25)\n",
+            "price": 0.52,
+            "units": 520,
+            "projectid": null,
+            "tax": 4,
+            "taxes": [
+                "s_iva_4"
+            ],
+            "tags": [],
+            "discount": 0,
+            "retention": 0,
+            "weight": 0,
+            "costPrice": 0,
+            "sku": "L250217047",
+            "account": "64227fd364fcfe702b0945ba",
+            "productId": "642700dc3d11652d2d0a34c5",
+            "variantId": "642700dc3d11652d2d0a34c6"
+        },
+        {
+            "name": "VDVV 5",
+            "desc": "AOV Ecológico ValdeVellisca 5l (T-2025-136\t15/06/25)\n",
+            "price": 34.9,
             "units": 12,
             "projectid": null,
             "tax": 4,
@@ -25,16 +88,16 @@
             "retention": 0,
             "weight": 0,
             "costPrice": 0,
-            "sku": "L250105128",
+            "sku": "L2408EV25041",
             "account": "64227fd364fcfe702b0945ba",
-            "productId": "64270002fe2674434f07a821",
-            "variantId": "64270002fe2674434f07a822"
+            "productId": "6426ff225f758ef8b905a33b",
+            "variantId": "6426ff225f758ef8b905a33c"
         },
         {
-            "name": "VDVE 5",
-            "desc": "AOVE Ecológico ValdeVellisca 5l",
-            "price": 57.69231,
-            "units": 3,
+            "name": "VDVV 5",
+            "desc": "AOV Ecológico ValdeVellisca 5l (T-2025-140\t29/06/25)\n",
+            "price": 34.9,
+            "units": 6,
             "projectid": null,
             "tax": 4,
             "taxes": [
@@ -45,24 +108,24 @@
             "retention": 0,
             "weight": 0,
             "costPrice": 0,
-            "sku": "L250404036",
+            "sku": "L2408EV25041",
             "account": "64227fd364fcfe702b0945ba",
-            "productId": "6426ffac29de31d2f708d0de",
-            "variantId": "6426ffac29de31d2f708d0df"
+            "productId": "6426ff225f758ef8b905a33b",
+            "variantId": "6426ff225f758ef8b905a33c"
         }
     ],
-    "tax": 14.75,
-    "subtotal": 368.92,
+    "tax": 59.33,
+    "subtotal": 1483.1,
     "discount": 0,
-    "total": 383.67,
+    "total": 1542.4299999999998,
     "language": "es",
     "status": 0,
     "customFields": [],
-    "docNumber": "A-2025-090",
+    "docNumber": "A-2025-093",
     "currency": "eur",
     "currencyChange": 1,
     "paymentsTotal": 0,
-    "paymentsPending": 383.67,
+    "paymentsPending": 1542.4299999999998,
     "paymentsRefunds": 0,
     "shipping": "hidden"
 }

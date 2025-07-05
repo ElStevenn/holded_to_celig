@@ -1,0 +1,50 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "2",
+    "Documento": 608,
+    "TipoAsiento": "FacturasRecibidas",
+    "Fecha": 20250623,
+    "FechaFactura": 20250623,
+    "CuentaCliente": "40000178",
+    
+    "NombreCliente": "Semillando Sotillo s.c.m.",
+    "NumeroFactura": "A-2025-091",
+    "Descripcion": "A-2025-091 - Semillando Sotillo s.c.m.",
+    "TipoFactura": "OpInteriores",
+    "ClaveRegimenIva1": "01",
+    "ProrrataIva": false,
+    "BaseImponible1": 379.89,
+    "PorcentajeIVA1": 4,
+    "CuotaIVA1": 15.20,
+    "TotalFactura": 395.09,
+    "ImporteCobrado": 0,
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "2",
+        "Documento": 608,
+        "NumeroVencimiento": 1,
+        "FechaFactura": 20250623,
+        "CuentaCliente": "40000178",
+        "NumeroFactura": "A-2025-091",
+        "FechaVencimiento": 20250623,
+        "Importe": 395.09,
+        "CodigoTipoVencimiento": 1
+      }
+    ],
+    "Apuntes": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "2",
+        "Documento": 608,
+        "Linea": 1,
+        "Cuenta": "60100000",
+        "Concepto": "Compra AOVE 4 % (base)",
+        "Fecha": 20250623,
+        "Importe": 379.89,
+        "TipoImporte": 1
+      }
+    ]
+  }
+  

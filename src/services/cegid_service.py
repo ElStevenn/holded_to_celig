@@ -7,6 +7,7 @@ import time
 import re
 import unicodedata
 from src.config.settings import update_cegid_subcuenta_offset, get_cegid_subcuenta_offset
+from urllib.parse import quote_plus
 
 from src.config.settings import (
         USERNAME,
@@ -127,46 +128,83 @@ class CegidAPI:
 
                 return response_json.get("Datos")
 
+    async def search_cliente_by_api(self, nif):
+        url = self.api_con + f"/api/subcuentas?$filter=NIF eq '{nif}'"
+        headers = {
+            "Authorization": f"Bearer {self.auth_token_con}",
+            "Content-Type": "application/json"
+        }
+
+        
+
     async def _subcuentas(self):
+        """Get all subcuentas from both type of client"""
         async with self._subcuentas_lock:
-            if self._subcuentas_cache is None:
+            if self._subcuentas_cache is None:                
+
                 c1, c2 = await asyncio.gather(
-                    self.get_subcuentas(1),
-                    self.get_subcuentas(2)
+                    self.get_subcuentas(1), # Client
+                    self.get_subcuentas(2)  # Provider
                 )
                 self._subcuentas_cache = [c for c in (c1 or []) + (c2 or []) if c]
         return self._subcuentas_cache
 
-    async def search_cliente(self, nif, nombre_cliente):
+    async def search_cliente(self, nif: str , nombre_cliente: str, cliente_type: int): # 1 = cliente → 43…,   2 = proveedor → 40…/41…
+        """
+        Look up the sub-account code in Cegid.
+
+        * cliente_type = 1  → return only codes starting with '43'
+        * cliente_type = 2  → return only codes starting with '40' or '41'
+        * otherwise        → always return None
+        """
         cuentas = await self._subcuentas()
-        if not cuentas:
+        if not cuentas or cliente_type not in (1, 2):
             return None
 
-        def norm(t):
-            if not t:
+        #  helpers
+        def norm(text: str | None) -> str:
+            if not text:
                 return ""
-            t = unicodedata.normalize("NFKD", t)
-            t = t.encode("ascii", "ignore").decode()
-            return re.sub(r"\s+", " ", t).strip().lower()
+            txt = unicodedata.normalize("NFKD", text)
+            txt = txt.encode("ascii", "ignore").decode()
+            return re.sub(r"\s+", " ", txt).strip().lower()
 
-        def clean(n):
+        def clean(n: str | None) -> str:
             return re.sub(r"[^A-Z0-9]", "", (n or "").upper())
 
+        def prefix_ok(codigo: str) -> bool:
+            if cliente_type == 1:
+                return codigo.startswith("43")
+            return codigo.startswith(("40", "41"))   # cliente_type == 2
+
+        # NIF match 
         if nif:
             tn = clean(nif)
             for c in cuentas:
-                if clean(c.get("NIF")) == tn:
-                    return c.get("Codigo")
+                if prefix_ok(c["Codigo"]) and clean(c.get("NIF")) == tn:
+                    return c["Codigo"]
 
+        #  Nombre exacto  
         if nombre_cliente:
             tgt = norm(nombre_cliente)
             for c in cuentas:
-                if norm(c.get("Descripcion")).startswith(tgt) or norm(c.get("NombreComercial")).startswith(tgt):
-                    return c.get("Codigo")
-            for c in cuentas:
-                if tgt in norm(c.get("Descripcion")) or tgt in norm(c.get("NombreComercial")):
-                    return c.get("Codigo")
+                if not prefix_ok(c["Codigo"]):
+                    continue
+                descr = norm(c.get("Descripcion"))
+                nomcom = norm(c.get("NombreComercial"))
+                if descr.startswith(tgt) or nomcom.startswith(tgt):
+                    return c["Codigo"]
 
+            # Nombre contiene
+            for c in cuentas:
+                if not prefix_ok(c["Codigo"]):
+                    continue
+                descr = norm(c.get("Descripcion"))
+                nomcom = norm(c.get("NombreComercial"))
+                if tgt in descr or tgt in nomcom:
+                    return c["Codigo"]
+
+        # nothing found with the required prefix
         return None
 
     
@@ -326,6 +364,35 @@ class CegidAPI:
 
                 return response_json
 
+    async def check_invoice_exists(self, invoice_number: str):
+        """Return True/False if the invoice exists, None on unexpected error. | invoice number in holded equals to docNumber"""
+        filter_expr = quote_plus(f"NumeroFactura eq '{invoice_number}'")
+        url = f"{self.api_con}/api/facturas?$filter={filter_expr}"
+        headers = {
+            "Authorization": f"Bearer {self.auth_token_con}", 
+            "Content-Type": "application/json"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as res:
+                if res.status == 401:
+                    await self.renew_token_api_contabilidad()
+                    # retry once with fresh token
+                    return await self.check_invoice_exists(invoice_number)
+
+                if res.status != 200:
+                    print(f"[WARN] Unexpected status {res.status}: {await res.text()}")
+                    return None
+
+                payload = await res.json()
+                # print("Response ->", json.dumps(payload, indent=4))
+                # Most Cegid endpoints respond with {"value":[…]}
+                invoices = payload.get("Datos")
+
+                print(type(invoices))
+
+                return invoices
+    
     # SERIES
     async def get_series(self):
         url = self.api_con + "/api/series"
@@ -412,9 +479,6 @@ class CegidAPI:
                 await asyncio.sleep(0.5)
         return rows
 
-
-
-    
     async def get_subcuenta(self, subcuenta: str):
         url = self.api_con + f"api/subcuentas/subcuenta/{subcuenta}"
         headers = {
@@ -437,92 +501,106 @@ class CegidAPI:
 
                 return response_json.get('Datos', None)
 
-    async def add_subcuenta(self, name: str, nif: str | None = None, email: str | None = None, telefono: str | None = None, bill_address: dict | None = None):
-        """Add new subcuenta (client) to the Cegid API"""
+    async def add_subcuenta(self, name: str, sub_account_type: int, nif: str = None, email: str = None, telefono: str  = None, bill_address: dict  = None):  # 1 = client | 2 = provider
+        """
+        Create a Cegid sub-account.
+        ─────────────────────────
+        • sub_account_type == 1  → client (code starts with 43…, CuentaContable = 430)
+        • sub_account_type == 2  → provider (code starts with 40…, CuentaContable = 400)
+        Returns the new code, or None if creation fails.
+        """
 
-        def _safe_field(text: str, limit: int) -> str:
-            """Return `text` trimmed to `limit` characters (or empty if None)."""
-            return (text or "")[:limit].strip()
+        # choose the numeric space 
+        if sub_account_type == 1: # client
+            base_code       = 43_001_000
+            cuenta_contable = 430
+            tipo_subcuenta  = 1
+        elif sub_account_type == 2: # provider
+            base_code       = 40_001_000
+            cuenta_contable = 400
+            tipo_subcuenta  = 2
+        else:
+            return None
 
-
-        # Get new codigo based on the last subcuenta
-        cuentas = await self.get_subcuentas(1)
-        
-        offset = get_cegid_subcuenta_offset()
-        new_code = str(int(43001000) + offset).zfill(6)
+        offset     = get_cegid_subcuenta_offset()
+        next_code  = str(base_code + offset).zfill(6)
         update_cegid_subcuenta_offset()
 
-        # Data to create the new subcuenta
-        data = {
-            "Codigo": new_code,
-            "Descripcion": name,
-            "CuentaContable": 430,
-            "NIF": nif or "",
-            "Email": email or "",
-            "Telefonos": telefono or "",
-            "TipoSubcuenta": 1
+        # compose the payload 
+        data: dict[str, str | int] = {
+            "Codigo"        : next_code,
+            "Descripcion"   : (name or "")[:60],
+            "CuentaContable": cuenta_contable,
+            "TipoSubcuenta" : tipo_subcuenta,
+            "NIF"           : (nif or "")[:15],
+            "Email"         : (email or "")[:60],
+            "Telefonos"     : (telefono or "")[:30],
         }
 
         if bill_address:
-            address = bill_address.get("address", "")
-            if len(address) <= 60:
-                data["DireccionCompleta"] = address
+            addr = bill_address.get("address", "")[:60]
+            if addr:
+                data["DireccionCompleta"] = addr
 
-            data.update({
-                "CodigoPostal" : bill_address.get("postalCode", "")[:5],
-                "Poblacion"    : bill_address.get("city", "")[:40],
-                "Provincia"    : bill_address.get("province", "")[:40],
-                "Pais"         : (bill_address.get("country_code") or "")[:2].upper()
-            })
+            data |= {
+                "CodigoPostal": (bill_address.get("postalCode") or "")[:5],
+                "Poblacion"   : (bill_address.get("city") or "")[:40],
+                "Provincia"   : (bill_address.get("province") or "")[:40],
+                "Pais"        : (bill_address.get("country_code") or "")[:2].upper(),
+            }
 
-        url = f"{self.api_con}/api/subcuentas/add"
+        # POST to Cegid, retrying on duplicate-code collisions
+        url     = f"{self.api_con}/api/subcuentas/add"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
-            "Content-Type": "application/json",
+            "Content-Type" : "application/json",
         }
 
-        print("Data", data, "new_code", new_code)
         async with aiohttp.ClientSession() as session:
-            attempts = 0
-            code_int = int(new_code)
+            code_int  = int(next_code)
+            attempts  = 0
+
             while attempts < 10:
-                data["Codigo"] = str(code_int).zfill(len(new_code))
+                data["Codigo"] = str(code_int).zfill(6)
+
                 async with session.post(url, headers=headers, json=data) as res:
                     if res.status == 401:
                         await self.renew_token_api_contabilidad()
-                        continue  # retry same code after token refresh
+                        continue
 
                     if res.status == 200:
                         return data["Codigo"]
 
-                    detail = await res.json()
-                    # if “already exists” error, bump code and retry
-                    msgs = [m for v in detail.get("ModelState", {}).values() for m in v]
-                    if any("Ya existe una subcuenta con el código" in m for m in msgs):
-                        code_int += 1
-                        attempts += 1
-                        continue
+                    # duplicate-code → bump +1 and retry
+                    if res.status == 400:
+                        detail = await res.json()
+                        msgs   = [m for v in detail.get("ModelState", {}).values() for m in v]
+                        if any("Ya existe una subcuenta con el código" in m for m in msgs):
+                            code_int += 1
+                            attempts += 1
+                            continue
 
-                    # other errors: bail out
+                    # any other error → give up
+                    detail = await res.text()
                     raise RuntimeError(f"Add subcuenta failed ({res.status}): {detail}")
 
-            # exhausted retries
-            return None
+        return None
+
 
             
 async def main_test():
     cegid = CegidAPI("72")
     await cegid.renew_token_api_contabilidad()
 
+    cliente = await cegid.search_cliente("F86580578", "Semillando Sotillo", 2); print(cliente)
 
-    # facturas = await cegid.get_subcuentas(1)
-    # print(len(facturas), "subcuentas obtenidas")
+    """
+    Test if we can create a new sub-account that already exists as client, but we want to create it as provider
+    """
 
-    for _ in range(10):
-        cliente_id = await cegid.search_cliente("", "GARCIA PRIETO"); print("Cliente ID", cliente_id)
-    
+    # result = await cegid.check_invoice_exists('A-skjdb'); print(result); print(len(result))
 
-    # pls = await cegid.add_subcuenta("Miguel Francisco", "14953199W", "zurrom@yahoo.es", "656709940", {'address': 'Calle D. Rodolfo Llopis, 5 2C', 'city': 'Cuenca', 'postalCode': '16002', 'province': 'Cuenca', 'country': 'España', 'countryCode': 'ES', 'info': ''})
+
 
 if __name__ == "__main__":
     asyncio.run(main_test())

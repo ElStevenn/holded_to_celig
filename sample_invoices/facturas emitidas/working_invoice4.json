@@ -1,0 +1,55 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "1",
+    "Documento": 659,
+    "TipoAsiento": "FacturasEmitidas",
+    "Fecha": 20250630,
+    "FechaFactura": 20250630,
+    
+    "CuentaCliente": "43000117",
+    "NumeroFactura": "A-2025-093",
+    "Descripcion": "A-2025-093 - PINWIS SL. (Maroma)",
+    "TipoFactura": "OpInteriores",
+    "NombreCliente": "PINWIS SL. (Maroma)",
+  
+    "ClaveRegimenIva1": "01",
+    "ProrrataIva": false,
+  
+    "BaseImponible1": 1483.10,
+    "PorcentajeIVA1": 4,
+    "CuotaIVA1": 59.32,
+  
+    "TotalFactura": 1542.42,
+    "ImporteCobrado": 0,
+  
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 659,
+        "NumeroVencimiento": 1,
+        "FechaFactura": 20250630,
+        "CuentaCliente": "43000117",
+        "NumeroFactura": "A-2025-093",
+        "FechaVencimiento": 20250829,
+        "Importe": 1542.42,
+        "CodigoTipoVencimiento": 1
+      }
+    ],
+  
+    "Apuntes": [
+      {
+        "Ejercicio": "2025",
+        "Serie": "1",
+        "Documento": 659,
+        "Linea": 1,
+        "Cuenta": "70000000",
+        "Concepto": "Ventas mercaderías",
+        "Fecha": 20250630,
+        "Importe": 1483.10,
+        "TipoImporte": 2
+      }
+    ]
+  }
+  

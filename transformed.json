@@ -1,0 +1,46 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "2",
+    "Documento": 612,
+    "TipoAsiento": "FacturasRecibidas",
+    "Fecha": 20250623,
+    "FechaFactura": 20250623,
+    "CuentaCliente": "41000763",
+    
+    "NumeroFactura": "A-2025-091",
+    "Descripcion": "A-2025-091 - Semillando Sotillo s.c.m.",
+    "TipoFactura": "OpInteriores",
+    "TotalFactura": 395.09,
+    "ImporteCobrado": 0,
+    "TipoVencimiento": 1,
+    "BaseImponible1": 379.89,
+    "PorcentajeIVA1": 4,
+    "CuotaIVA1": 15.2,
+    "Vencimientos": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 612,
+            "NumeroVencimiento": 1,
+            "FechaFactura": 20250623,
+            "CuentaCliente": "41000763",
+            "NumeroFactura": "A-2025-091",
+            "FechaVencimiento": 20250623,
+            "Importe": 395.09,
+            "CodigoTipoVencimiento": 1
+        }
+    ],
+    "Apuntes": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 612,
+            "Linea": 1,
+            "Cuenta": "60100000",
+            "Concepto": "Semillando Sotillo s.c.m.",
+            "Fecha": 20250623,
+            "Importe": 379.89,
+            "TipoImporte": 1
+        }
+    ]
+}

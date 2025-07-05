@@ -41,8 +41,8 @@ class HoldedAPI:
                     return []
 
 
-    async def invoice_details(self, document_id):
-        url = f"{self.base_url}/invoicing/v1/documents/{self.docType_invoice}/{document_id}"
+    async def invoice_details(self, document_id: str, doc_type: str):
+        url = f"{self.base_url}/invoicing/v1/documents/{doc_type}/{document_id}"
         headers = {
             "accept": "application/json",
             "key": self.api_key
@@ -93,8 +93,8 @@ class HoldedAPI:
             except aiohttp.ClientError:
                 return None
 
-    async def get_invoice_document_pdf(self, document_id):
-        url = self.base_url + f"/invoicing/v1/documents/{self.docType_invoice}/{document_id}/pdf"
+    async def get_invoice_document_pdf(self, document_id, doc_type):
+        url = self.base_url + f"/invoicing/v1/documents/{doc_type}/{document_id}/pdf"
         headers = {
             # Even though it's JSON, you might just omit the Accept
             # or set it to 'application/json' if the endpoint specifically requires it:
