@@ -6,4 +6,10 @@ dotenv
 uvicorn
 redis
 aioredis
-pytz
+
+Quart
+python-dotenv
+asyncpg
+sqlalchemy
+argon2-cffi
+passlib

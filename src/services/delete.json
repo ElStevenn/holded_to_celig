@@ -1,0 +1,54 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "2",
+    "Documento": 706,
+    "TipoAsiento": "FacturasRecibidas",
+
+    "Fecha": 20250311,
+    "FechaFactura": 20250311,
+    "CuentaCliente": "40000334",
+    "NumeroFactura": "R-2025-001",
+    "Descripcion": "R-2025-001 – Jorge Tudela Alique",
+    "TipoFactura": "OpInteriores",
+    "NombreCliente": "Jorge Tudela Alique",
+    "ClaveRegimenIva1": "01",
+    
+    "ProrrataIva": false,
+    "BaseImponible1": 12870.8,
+    "PorcentajeIVA1": 12,
+    "CuotaIVA1": 1544.5,
+    "BaseRetencion": 14415.3,
+    "PorcentajeRetencion": 2,
+    "CuotaRetencion": 288.31,
+    "TipoRetencion": "Agricultores",
+    "TotalFactura": 14126.99,
+    "ImporteCobrado": 14126.99,
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 706,
+            "NumeroVencimiento": 1,
+            "FechaFactura": 20250311,
+            "CuentaCliente": "40000334",
+            "NumeroFactura": "R-2025-001",
+            "FechaVencimiento": 20250311,
+            "Importe": 14126.99,
+            "CodigoTipoVencimiento": 1
+        }
+    ],
+    "Apuntes": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 706,
+            "Linea": 1,
+            "Cuenta": "60100000",
+            "Concepto": "ACEITUNA ECOLÓGICA VARIEDAD VERDEJA",
+            "Fecha": 20250311,
+            "Importe": 12870.8,
+            "TipoImporte": 1
+        }
+    ]
+}

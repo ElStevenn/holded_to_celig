@@ -8,6 +8,9 @@ PROJECT_NAME    := holded_celig
 up:
 	$(DOCKER_COMPOSE) up --build -d
 
+up-app:
+	$(DOCKER_COMPOSE) up --build -d app
+
 down:
 	$(DOCKER_COMPOSE) down
 

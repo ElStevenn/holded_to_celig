@@ -5,16 +5,18 @@ import re
 import base64
 from datetime import datetime
 from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 import random
 import traceback
 import time
+import re
 
 from src.services.cegid_service import CegidAPI
 from src.services.holded_service import HoldedAPI
-from src.config.settings import HOLDED_ACCOUNTS, increment_offset, get_offset, set_offset, update_offset_doc, get_offset_doc
+from src.config.settings import HOLDED_ACCOUNTS, increment_offset, get_offset, set_offset, update_offset_doc, get_offset_doc, generate_cif
 
 tz = pytz.timezone('Europe/Madrid')
-VALID_VAT_RATES = {0, 4, 5, 7, 10, 21}
+VALID_VAT_RATES = {0, 4, 10, 12, 21} 
 
 class AsyncService:
     def __init__(self):
@@ -35,98 +37,128 @@ class AsyncService:
             for doc_type in acc["cuentas_a_migrar"]:
                 tasks.append(self.process_account_invoices(h_api, cegid_api, acc["nombre_empresa"], acc["tipo_cuenta"], doc_type))
                 print("MIGRANDO CUENTA: ", doc_type)
-                break
+                
             break
         print(f"Total Holded accounts to process: {len(tasks)}")
         await asyncio.gather(*tasks)
 
-
     async def process_account_invoices(self, holded_api: "HoldedAPI", cegid_api: "CegidAPI", nombre_empresa, tipo_cuenta: str, doc_type: str = "invoice"):
-        """ Processes invoices for a given Holded account and pushes them to Cegid."""
+        """Processes Holded invoices and pushes them to Cegid. 
+        If Cegid returns 'duplicated', increments Documento and retries."""
 
-        # Get curret offset and list invoices
         offset = get_offset(holded_api.api_key, doc_type)
         all_invoices = await holded_api.list_invoices(doc_type)
-
-        invoices = list(reversed(all_invoices))[offset -1:]
+        invoices = list(reversed(all_invoices))[offset - 1:]
         max_per_migration = 15
+
         for i, inv_header in enumerate(invoices):
-            print("Migration num: ", i)
+            res_created_invoice = None
+            cli_name = None
+            print("Migration num:", i)
             if i >= max_per_migration:
                 break
 
             try:
-                # Detalles Holded
                 inv = await holded_api.invoice_details(inv_header["id"], doc_type)
                 pdf = await holded_api.get_invoice_document_pdf(inv["id"], doc_type)
                 cli = await holded_api.get_client(inv["contact"])
-            
-                # Search cuenta cliente, otherwise create it
-                cli_name = ' '.join(cli['name'].split()[:2])
-                cli_nif = cli.get('vatnumber', '').strip() or cli.get('code', '').strip()
-                print("Cliente name: ", cli['name'])
 
-                # Determine type of client
-                if doc_type in ["invoice"]:
+                if cli:
+                    cli_name = ' '.join(str(cli.get('name', inv.get("contactName", "-"))).split()[:2])
+                    vatnumber = str(cli.get('vatnumber', '')).strip() or generate_cif()
+                    match = re.search(r'\b\d{7,8}[A-Z]\b', vatnumber, re.IGNORECASE)
+                    cli_nif = match.group(0) if match else ''
+                else:
+                    cli = self.create_unreal_client(inv)
+                    cli_nif = cli["nif"]
+
+                if doc_type == "invoice":
                     client_type = 1
-                elif doc_type in ["purchase", "estimate"]:
+                elif doc_type in ("purchase", "estimate"):
                     client_type = 2
                 else:
                     raise ValueError("Doc type is wrong")
 
-                cuenta_cliente = await cegid_api.search_cliente(nif=cli_nif, nombre_cliente=cli_name, cliente_type=client_type)
+                # Save invoice
+                open('holded_invoice.json', 'w').write(json.dumps(inv, indent=4, ensure_ascii=False))
+                if not cli_name:
+                    cli_name = f"Cliente {cli_nif}"
 
-                print(f'Cuenta cliente encontrada: {cuenta_cliente}')
+                cuenta_cliente = await cegid_api.search_cliente(
+                    nif=cli_nif, nombre_cliente=cli_name, cliente_type=client_type
+                )
                 if not cuenta_cliente:
-                    print("Cuenta cliente no encontrada, creando...")
-                    # Create new client in Cegid
                     cuenta_cliente = await cegid_api.add_subcuenta(
                         name=cli.get('name'),
-                        sub_account_type=1 if doc_type == "invoice" else 2, # SO IMPORTANT THIS
-                        nif=cli.get('vatnumber', '').strip() or cli.get('code', '').strip(),
+                        sub_account_type=1 if doc_type == "invoice" else 2,
+                        nif=cli_nif,
                         email=cli.get("email", ""),
                         telefono=cli.get("mobile") or cli.get("phone"),
                         bill_address=cli.get("billAddress", {})
                     )
-                
-                open('holded_invoice.json', 'w').write(json.dumps(inv, indent=4, ensure_ascii=False))
-                factura = await self.transform_invoice_holded_to_cegid(inv, cli, nombre_empresa, cuenta_cliente, doc_type)
+
+                factura = await self.transform_invoice_holded_to_cegid(
+                    holded_invoice=inv,
+                    holded_client=cli,
+                    nombre_empresa=nombre_empresa,
+                    cuenta_cliente=cuenta_cliente,
+                    doc_type=doc_type
+                )
+
                 open('invoice.json', 'w').write(json.dumps(factura, indent=4, ensure_ascii=False))
-                if pdf:
-                    open('output.pdf', 'wb').write(base64.b64decode(pdf))
-
-                if tipo_cuenta == "normal":
-                    print(f'La factura {factura["Documento"]} sería creada ahora como normal')
-                    # await cegid_api.crear_factura(factura)
-                elif tipo_cuenta == "nuevo_sistema":
-                    factura = self.transform_invoice_data(factura)
-                    print(f'La factura {factura["Documento"]} sería creada ahora como nuevo sistema')
-                    # await cegid_api.crear_factura_nuevo_sistema(factura)
 
                 if pdf:
+                    open('der_output.pdf', 'wb').write(base64.b64decode(pdf))
+
+                # Primer intento + reintentos si 'duplicated'
+                max_retries = 3
+                intento = 0
+                while True:
+                    # Create invpice normal if tipo_cuenta is normal and doc_type is not purchase
+                    if tipo_cuenta == "normal" and doc_type != "purchase":
+                        print("Creando factura NORMAL")
+                        res_created_invoice = await cegid_api.crear_factura(factura)
+                    else:
+                        print("Creando factura NUEVO SISTEMA")
+                        res_created_invoice = await cegid_api.crear_factura_nuevo_sistema(factura)
+
+                    if res_created_invoice != "duplicated":
+                        break
+
+                    if intento >= max_retries:
+                        print("[ERROR] Demasiados duplicados, abortando.")
+                        break
+
+                    print("[WARN] Cegid devolvió 'duplicated'. Incrementando Documento y reintentando...")
+                    factura = self._bump_document(factura, nombre_empresa)
+                    intento += 1
+
+                # Subir PDF solo si la creación no falló
+                if pdf and res_created_invoice != "duplicated":
                     doc_meta = {
                         "Ejercicio": factura["Ejercicio"],
-                        "Serie":     factura["Serie"],
+                        "Serie": factura["Serie"],
                         "Documento": factura["Documento"],
                         "NombreArchivo": f'{factura["Serie"]}-{factura["Documento"]}.pdf',
-                        "Archivo":       pdf,
+                        "Archivo": pdf,
                     }
-                    open('invoice_data.json', 'w').write(json.dumps(doc_meta, indent=4, ensure_ascii=False))
-            
-                    # await cegid_api.add_documento_factura(doc_meta)
+                    await cegid_api.add_documento_factura(doc_meta)
 
-                print(f'[OK] Subida factura {factura["NumeroFactura"]}')
+                if res_created_invoice == "duplicated":
+                    print(f"[ERROR] No se pudo subir la factura {factura['NumeroFactura']} (duplicated persistente)")
+                else:
+                    print(f"[OK] Subida factura {factura['NumeroFactura']}")
+
             except Exception as e:
                 print(f"[ERROR] processing invoice {inv_header['id']}: {e}")
                 traceback.print_exc()
             finally:
-                # Esto SÍ se ejecuta aunque falle todo lo anterior
-                # increment_offset(holded_api.api_key, doc_type)
+                increment_offset(holded_api.api_key, doc_type)
                 print(f'[DEBUG] Offset incrementado para API key {holded_api.api_key}')
-                time.sleep(3)
-                break
+                time.sleep(0.5)
+
         return None
-    
+        
     # UTILITIES
     async def ensure_serie(self, holded_inv: dict, cegid: "CegidAPI"):
         serie = holded_inv["docNumber"].split("-")[0]
@@ -134,18 +166,36 @@ class AsyncService:
         if not any(s["Codigo"] == serie for s in series):
             await cegid.add_serie(codigo=serie, descripcion=f"Serie auto {serie}")
 
-            
-    async def transform_invoice_holded_to_cegid(
-            self,
-            holded_invoice: dict,
-            holded_client: dict,
-            nombre_empresa: str,
-            cuenta_cliente: str,
-            doc_type: str
-    ):
-        iva_reg_code = "01"                               # Régimen general
+    def _bump_document(self, factura: dict, nombre_empresa: str) -> dict:
+        new_doc = int(factura["Documento"]) + 1
+        factura["Documento"] = new_doc
+        for v in factura.get("Vencimientos", []):
+            v["Documento"] = new_doc
+        for a in factura.get("Apuntes", []):
+            a["Documento"] = new_doc
+        update_offset_doc(nombre_empresa)
+        return factura
+    
+    def create_unreal_client(self, invoice: dict):
+        client = {
+            "nif": generate_cif(),
+            "name": invoice.get("contactName", "")[:50],
+            "emai": ""
+        }
 
-        # ────── Identificación ───────────────────────────────────────────
+        return client
+
+    async def transform_invoice_holded_to_cegid(self, holded_invoice: dict, holded_client: dict, nombre_empresa: str, cuenta_cliente: str, doc_type: str):
+        print("[DEBUG] transform_invoice_holded_to_cegid called with parameters:")
+        print(f"  holded_invoice: {json.dumps(holded_invoice, indent=2, ensure_ascii=False)}")
+        print(f"  holded_client: {json.dumps(holded_client, indent=2, ensure_ascii=False)}")
+        print(f"  nombre_empresa: {nombre_empresa}")
+        print(f"  cuenta_cliente: {cuenta_cliente}")
+        print(f"  doc_type: {doc_type}")
+        iva_reg_code = "01"
+        cuenta_compras_agrarias = ""
+
+        # ───── identificación ─────
         doc_number = get_offset_doc(nombre_empresa)
         ts_date    = datetime.fromtimestamp(holded_invoice["date"], self.tz_mad)
         ejercicio  = str(ts_date.year)
@@ -154,20 +204,23 @@ class AsyncService:
                             holded_invoice.get("dueDate") or holded_invoice["date"],
                             self.tz_mad).strftime("%Y%m%d"))
 
-        contact_name   = (holded_invoice.get("contactName") or "").strip()
-        numero_factura = holded_invoice.get("docNumber") or ts_date.strftime("%Y%m%d")
+        raw_contact = (holded_invoice.get("contactName") or "").strip()
+        clean_name  = re.sub(r"\s*\(.*?\)\s*$", "", raw_contact)         # quita (CAMPO), (RENTA)…
+        numero_fact = holded_invoice.get("docNumber") or ts_date.strftime("%Y%m%d")
 
-        # Serie / cuenta contable por tipo de documento
-        if doc_type == "invoice":                         # FACTURA EMITIDA
+        # ───── serie / asiento ─────
+        if doc_type in ("invoice", "sales"):
             serie, tipo_asiento = "1", "FacturasEmitidas"
-            sales_account       = "70000000"
-        else:                                             # FACTURA RECIBIDA
+            cuenta_gasto        = "70000000"
+            concepto_linea      = "Ventas mercaderías"
+        else:                                                           # estimate / purchase / bill
             serie, tipo_asiento = "2", "FacturasRecibidas"
-            sales_account       = "60100000"
+            cuenta_gasto        = "60100000"
+            concepto_linea      = (holded_invoice["products"][0]["name"][:40]
+                                if holded_invoice.get("products") else clean_name[:40])
 
-        tipo_factura = 2 if "maquila" in contact_name.lower() else 1
+        tipo_factura = "OpInteriores"
 
-        # ────── Cabecera base ────────────────────────────────────────────
         factura = {
             "Ejercicio"      : ejercicio,
             "Serie"          : serie,
@@ -176,40 +229,45 @@ class AsyncService:
             "Fecha"          : fecha_int,
             "FechaFactura"   : fecha_int,
             "CuentaCliente"  : cuenta_cliente,
-            "NumeroFactura"  : numero_factura,
-            "Descripcion"    : f"{numero_factura} - {contact_name}"[:40],
+            "NumeroFactura"  : numero_fact,
+            "Descripcion"    : f"{numero_fact} – {clean_name}"[:40],
             "TipoFactura"    : tipo_factura,
-            "NombreCliente"  : contact_name[:40],
+            "NombreCliente"  : clean_name[:40],
             "ClaveRegimenIva1": iva_reg_code,
             "ProrrataIva"    : False,
         }
         if vat := holded_client.get("vatnumber"):
             factura["CifCliente"] = vat
 
-        # ────── Bases, cuotas y tipos de IVA ─────────────────────────────
+        # ───── bases / IVA ─────
         vat_groups       = defaultdict(float)
-        ret_base, ret_pct = 0.0, 0.0
-        total_descuentos  = 0.0
+        ret_base         = 0.0
+        ret_pct          = 0.0
+        total_descuentos = holded_invoice.get("discount", 0.0) or 0.0
 
         for prod in holded_invoice.get("products", []):
-            price  = prod["price"]
-            units  = prod["units"]
-            disc   = prod.get("discount", 0)              # %
-            base   = price * units * (1 - disc / 100)
-            rate   = prod.get("tax", 0) or 0              # 0, 4, 21, -2 …
+            price = prod["price"]
+            units = prod["units"]
+            disc  = prod.get("discount", 0)
+            base  = price * units * (1 - disc / 100)
+            rate  = prod.get("tax", 0) or 0
 
-            if rate < 0:                                  # → retención
+            # 👉  RETENCIÓN 2 %
+            if rate == -2 or "s_retencion2" in prod.get("taxes", []):
+                print("***HAY RETENCION!****")
                 ret_base += base
-                ret_pct   = abs(rate)
+                ret_pct   = 2
                 continue
-            if base < 0 and rate == 0:                    # corrección interna
-                continue
+
+            #  resto de líneas normales
+            if rate < 0:            # (por si llegara otra retención distinta)
+                continue            #  – de momento no la contemplamos
+            if base < 0 and rate == 0:
+                continue            #  línea de corrección interna
             vat_groups[rate] += base
 
-        if holded_invoice.get("discount"):                # descuento global
-            total_descuentos += holded_invoice["discount"]
 
-        if total_descuentos:
+        if total_descuentos:                              # descuento global
             resto = total_descuentos
             for r in sorted(vat_groups, reverse=True):
                 if resto <= 0:
@@ -224,9 +282,10 @@ class AsyncService:
             if rate not in VALID_VAT_RATES:
                 continue
             cuota = round(base * rate / 100, 2)
-            factura[f"BaseImponible{idx}"] = round(base, 2)
+            factura[f"BaseImponible{idx}"] = base 
             factura[f"PorcentajeIVA{idx}"] = rate
             factura[f"CuotaIVA{idx}"]      = cuota
+            
             if idx > 1:
                 factura[f"ClaveRegimenIva{idx}"] = iva_reg_code
             base_total += base
@@ -235,50 +294,64 @@ class AsyncService:
             if idx > 4:
                 break
 
-        if ret_base:                                      # bloque de retención
-            factura["BaseRetencion"]       = round(ret_base, 2)
-            factura["PorcentajeRetencion"] = ret_pct
-            factura["CuotaRetencion"]      = round(ret_base * ret_pct / 100, 2)
+        # ───── retención solo en recibidas ─────
+        ret_to_subtract = 0.0
+        if serie == "2" and ret_base:
+            cuota_ret = round(ret_base * 0.02, 2)
+            ret_to_subtract  = cuota_ret
 
-        # ────── Totales & cobrado ─────────────────────────────────────────
-        total_factura = round(
-            base_total + iva_total - factura.get("CuotaRetencion", 0.0), 2
-        )
+            factura.update({
+                "BaseRetencion":       round(ret_base, 2),
+                "PorcentajeRetencion": 2,
+                "CuotaRetencion":      cuota_ret,
+                "TipoRetencion":       "Agricultores",
+            })
+        
+        total_factura = round(base_total + iva_total - ret_to_subtract, 2)
+
         cobrado = holded_invoice.get("paymentsTotal")
         if cobrado is None:
             cobrado = holded_invoice.get("total", 0) - holded_invoice.get("paymentsPending", 0)
 
-        factura["TotalFactura"]   = total_factura
-        factura["ImporteCobrado"] = round(cobrado, 2)    # << BLOQUE 1 AÑADIDO
 
-        # ────── Vencimiento único ──────────────────────────────────────────
-        factura["TipoVencimiento"] = 1                   # << BLOQUE 2 AÑADIDO
+        factura["TotalFactura"]   = total_factura
+        
+        factura["ImporteCobrado"] = round(cobrado, 2)
+
+        
+        if doc_type == "estimate" or doc_type == "purchase":
+            factura["FechaIntroduccionFactura"] = fecha_int
+
+        # ───── vencimiento único ─────
+        factura["TipoVencimiento"] = 1
         factura["Vencimientos"] = [{
-            "Ejercicio"        : ejercicio,
-            "Serie"            : serie,
-            "Documento"        : doc_number,
+            "Ejercicio": ejercicio,
+            "Serie": serie,
+            "Documento": doc_number,
             "NumeroVencimiento": 1,
-            "FechaFactura"     : fecha_int,
-            "CuentaCliente"    : cuenta_cliente,
-            "NumeroFactura"    : numero_factura,
-            "FechaVencimiento" : fecha_venc,
-            "Importe"          : total_factura,
+            "FechaFactura": fecha_int,
+            "CuentaCliente": cuenta_cliente,
+            "NumeroFactura": numero_fact,
+            "FechaVencimiento": fecha_venc,
+            "Importe": total_factura,
             "CodigoTipoVencimiento": 1,
         }]
 
-        # ────── Apunte contable principal (con Importe / TipoImporte) ───────
-        importe_linea = round(base_total, 2)             # << BLOQUE 3 AÑADIDO
+        # ───── apunte de gasto / ingreso ─────
         factura["Apuntes"] = [{
-            "Ejercicio":  ejercicio,
-            "Serie":      serie,
-            "Documento":  doc_number,
-            "Linea":      1,
-            "Cuenta":     ("70000000" if serie == "1" else "60100000"),
-            "Concepto":   ("Ventas mercaderías" if serie == "1" else contact_name[:40]),
-            "Fecha":      fecha_int,
-            "Importe":    importe_linea,
-            "TipoImporte": (2 if serie == "1" else 1)   # 2 = Haber, 1 = Debe
+            "Ejercicio"   : ejercicio,
+            "Serie"       : serie,
+            "Documento"   : doc_number,
+            "Linea"       : 1,
+            "Cuenta"      : cuenta_gasto, # 60100000 en recibidas
+            "Concepto"    : concepto_linea,
+            "Fecha"       : fecha_int,
+            "Importe"     : round(base_total, 2),
+            "TipoImporte" : 2 if serie == "1" else 1
         }]
+
+
+
 
         update_offset_doc(nombre_empresa)
         return factura
@@ -286,9 +359,7 @@ class AsyncService:
 
     # Cegid (números)  ➜  FacturaData (textos + Debe/Haber)
     def transform_invoice_data(self, invoice: dict) -> dict:
-        
-        tipo_factura_map = {1: "OpInteriores", 2: "OpInteriores"}   # de momento los dos mapean igual
-
+        """Transforms invoice data from Cegid format to FacturaData format."""
         result = {
             "Ejercicio"      : invoice["Ejercicio"],
             "Serie"          : invoice["Serie"],
@@ -300,7 +371,7 @@ class AsyncService:
             "CuentaCliente"  : str(invoice["CuentaCliente"]),
             "NumeroFactura"  : invoice["NumeroFactura"],
             "Descripcion"    : invoice["Descripcion"],
-            "TipoFactura"    : tipo_factura_map[invoice["TipoFactura"]],
+            "TipoFactura"    : invoice["TipoFactura"],
             "TotalFactura"   : invoice["TotalFactura"],
             "ImporteCobrado" : invoice.get("ImporteCobrado", 0.0),
             "TipoVencimiento": invoice["TipoVencimiento"],
@@ -319,16 +390,25 @@ class AsyncService:
         # ▸ Apuntes  (convertimos Debe/Haber)
         res_apuntes = []
         for a in invoice.get("Apuntes", []):
+            # 1) ¿viene ya con “Importe” y “TipoImporte”?  (caso nuevo)
+            if "Importe" in a and "TipoImporte" in a:
+                importe      = a["Importe"]
+                tipo_importe = a["TipoImporte"]
+            else:
+                # 2) Formato antiguo Debe / Haber  → los convertimos
+                importe      = a.get("Haber", 0.0) or a.get("Debe", 0.0)
+                tipo_importe = 2 if a.get("Haber", 0.0) else 1
+
             res_apuntes.append({
-                "Ejercicio":    a["Ejercicio"],
-                "Serie":        a["Serie"],
-                "Documento":    a["Documento"],
-                "Linea":        a["Linea"],
-                "Cuenta":       str(a["Cuenta"]),
-                "Concepto":     a.get("Concepto", "")[:40],
-                "Fecha":        a["Fecha"],
-                "Importe":      a.get("Haber", 0.0) or a.get("Debe", 0.0),
-                "TipoImporte":  2 if a.get("Haber", 0.0) else 1
+                "Ejercicio":   a["Ejercicio"],
+                "Serie":       a["Serie"],
+                "Documento":   a["Documento"],
+                "Linea":       a["Linea"],
+                "Cuenta":      str(a["Cuenta"]),
+                "Concepto":    a.get("Concepto", "")[:40],
+                "Fecha":       a["Fecha"],
+                "Importe":     round(importe, 2),
+                "TipoImporte": tipo_importe
             })
         result["Apuntes"] = res_apuntes
         return result
@@ -467,53 +547,63 @@ async def invoice_converter():
     async_service = AsyncService()
     # Set here your inovice extracted from Holded API
     holded_invoice =  {
-        "id": "685918da5c16a8d10a051315",
-        "contact": "6446a64abeb69cadb10dec9b",
-        "contactName": "Semillando Sotillo s.c.m.",
+        "id": "687e0ba1c2c30b417a0909f5",
+        "contact": "661688e91cbed494180f467a",
+        "contactName": "Virginia Serrano Pastor (RENTA)",
         "desc": "",
-        "date": 1750629600,
+        "date": 1752876000,
         "dueDate": None,
         "multipledueDate": [],
         "forecastDate": None,
         "notes": "",
-        "tags": [],
+        "tags": [
+        "campo",
+        "renta"
+        ],
         "products": [
         {
-            "name": "VDVV 5",
-            "desc": "AOV Ecológico ValdeVellisca 5l",
-            "price": 42.21,
-            "units": 9,
+            "name": "RENTA",
+            "desc": "Olivar",
+            "price": 0.72,
+            "units": 51,
             "projectid": None,
-            "tax": 4,
-            "taxes": [
-            "s_iva_4"
+            "tax": 0,
+            "taxes": [],
+            "tags": [
+            "campo",
+            "renta"
             ],
-            "tags": [],
             "discount": 0,
             "retention": 0,
             "weight": 0,
-            "costPrice": 0,
-            "sku": "L2408EV25041",
-            "account": "64227fd364fcfe702b0945ba",
-            "productId": "6426ff225f758ef8b905a33b",
-            "variantId": "6426ff225f758ef8b905a33c"
+            "costPrice": 0.89243,
+            "sku": "",
+            "account": "64227fd264fcfe702b0945ac",
+            "productId": "66165849bee0fb81ab01f814",
+            "variantId": "66165849bee0fb81ab01f815"
         }
         ],
-        "tax": 15.2,
-        "subtotal": 379.89,
+        "tax": 0,
+        "subtotal": 36.72,
         "discount": 0,
-        "total": 395.09,
-        "language": "es",
-        "status": 0,
+        "total": 36.72,
+        "language": "",
+        "status": 1,
         "customFields": [],
-        "docNumber": "A-2025-091",
+        "docNumber": "R-2025-052",
         "currency": "eur",
         "currencyChange": 1,
-        "paymentMethodId": "64227fce64fcfe702b094536",
-        "paymentsTotal": 0,
-        "paymentsPending": 395.09,
-        "paymentsRefunds": 0,
-        "shipping": "hidden"
+        "paymentsDetail": [
+        {
+            "id": "687e0ba895b3ee0270086aeb",
+            "amount": 36.72,
+            "date": 1753048800,
+            "bankId": "64254034bfaa10ac2a0abab2"
+        }
+        ],
+        "paymentsTotal": 36.72,
+        "paymentsPending": 0,
+        "paymentsRefunds": 0
     }
    
     cegid_account = "Hermanos Pastor Vellisca SL"
@@ -524,17 +614,14 @@ async def invoice_converter():
             cegid_api = CegidAPI(account["codigo_empresa"])
             await cegid_api.renew_token_api_contabilidad()
 
-            current_invoice = await cegid_api.check_invoice_exists(holded_invoice["docNumber"])
-            if not current_invoice:
-                print("Invoice alreay exists in Cegid, skipping...")
-                continue
+            # current_invoice = await cegid_api.check_invoice_exists(holded_invoice["docNumber"])
 
             client = await holded_api.get_client(holded_invoice["contact"])
-            client_id = await cegid_api.search_cliente(nif=client.get('vatnumber', '').strip() or client.get('code', '').strip(), nombre_cliente=client.get('name')); print("Client ID ->",client_id)
+            client_id = await cegid_api.search_cliente(nif=client.get('vatnumber', '').strip() or client.get('code', '').strip(), nombre_cliente=client.get('name'), cliente_type=2)
             if not client_id:
                 raise ValueError(f"Cliente {cegid_account} no encontrado en Cegid, tendrás que crearlo.")
 
-
+            print("*Dcc type es estimate**")
             transformed_invoice = await async_service.transform_invoice_holded_to_cegid(
                 holded_invoice=holded_invoice,
                 holded_client=await holded_api.get_client(holded_invoice["contact"]),
@@ -546,7 +633,7 @@ async def invoice_converter():
 
             re_trasformed_invoice = async_service.transform_invoice_data(transformed_invoice)
 
-            pdf = await holded_api.get_invoice_document_pdf(holded_invoice["id"])
+            pdf = await holded_api.get_invoice_document_pdf(holded_invoice["id"], "estimate")
 
             doc_meta = {
                 "Ejercicio": re_trasformed_invoice["Ejercicio"],

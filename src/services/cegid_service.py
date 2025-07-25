@@ -22,7 +22,53 @@ from src.config.settings import (
         update_token_erp 
     )
 
+
+_DUP_RE = re.compile(
+    r"duplicate key value is\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)",
+    re.IGNORECASE
+)
+
+def _norm_country(value: str | None) -> str:
+    if not value:
+        return ""
+    v = value.strip()
+    if len(v) == 2 and v.isalpha():
+        return v.upper()
+    k = v.lower()
+    return COUNTRY_NAME_TO_ISO2.get(k, "")  # devuelve "" si no mapea
+
+def _extract_postal_code(raw: str | None) -> int | None:
+    if not raw:
+        return None
+    # Prioriza dígitos (ej. "NY 101280" -> "101280")
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return None
+    # Algunos zips USA son 5, pueden venir con 9 (ZIP+4). Tomamos primeros 5.
+    digits = digits[:5]
+    try:
+        return int(digits)
+    except ValueError:
+        return None
+
 """API class to interactuate with Holded"""
+COUNTRY_NAME_TO_ISO2 = {
+    "españa": "ES",
+    "spain": "ES",
+    "estados unidos": "US",
+    "united states": "US",
+    "francia": "FR",
+    "france": "FR",
+    "alemania": "DE",
+    "germany": "DE",
+    "italia": "IT",
+    "italy": "IT",
+    "portugal": "PT",
+    "united kingdom": "GB",
+    "reino unido": "GB",
+}
+
+
 
 class CegidAPI:
     _subcuentas_cache = None
@@ -74,6 +120,17 @@ class CegidAPI:
                     update_token_erp(auth_token)
                 else:
                     print("Auth token not found in the response")
+
+    def _is_duplicate_invoice_error(self, text: str) -> bool:
+        t = text.lower()
+        if _DUP_RE.search(text):
+            return True
+        if ("cannot insert duplicate key" in t or
+            "violation of primary key constraint" in t or
+            "duplicate key" in t):
+            return True
+        return False
+
 
     async def renew_token_api_contabilidad(self):
         """Renews token for the Contabilidad API"""
@@ -210,59 +267,65 @@ class CegidAPI:
     
     # INVOICE OPERATIONS
     async def crear_factura(self, invoice: dict):
-        url = self.api_con + "/api/facturas/add"
-        body = invoice
+        url = f"{self.api_con}/api/facturas/add"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
             "Content-Type": "application/json"
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=body, headers=headers) as res:
-                print(res.status)
-                
+            async with session.post(url, json=invoice, headers=headers) as res:
+                raw_text = await res.text()
+
                 if res.status == 401:
                     await self.renew_token_api_contabilidad()
                     return await self.crear_factura(invoice)
 
-                if res.status != 200:
-                    error = await res.json()
-                    print(f"An error ocurred: {res.status} : {error}")
-                
-                if res.status == 500:
-                    print("Interval Server Error ocurred", res.text)
-                    return 
+                try:
+                    body = json.loads(raw_text)
+                except ValueError:
+                    body = {"raw": raw_text}
 
-                data = await res.json()
-                print(data)
+                if res.status == 500:
+                    if self._is_duplicate_invoice_error(raw_text):
+                        return "duplicated"
+                    return f"Error 500: {body.get('ExceptionMessage') or raw_text}"
+
+                if res.status != 200:
+                    return f"Error {res.status}: {body.get('ExceptionMessage') or raw_text}"
+
+                return body
 
     async def crear_factura_nuevo_sistema(self, invoice: dict):
-        url = self.api_con + "/api/facturas/addNuevoSistemaSII"
-        body = invoice
+        url = f"{self.api_con}/api/facturas/addNuevoSistemaSII"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
             "Content-Type": "application/json"
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=body, headers=headers) as res:
-                print(res.status)
-                
+            async with session.post(url, json=invoice, headers=headers) as res:
+                raw_text = await res.text()
+
                 if res.status == 401:
                     await self.renew_token_api_contabilidad()
                     return await self.crear_factura_nuevo_sistema(invoice)
 
-                if res.status != 200:
-                    error = await res.json()
-                    print(f"An error ocurred: {res.status} : {error}")
-                
+                try:
+                    body = json.loads(raw_text)
+                except ValueError:
+                    body = {"raw": raw_text}
+
                 if res.status == 500:
-                    print("Interval Server Error ocurred", res.text)
-                    return 
+                    if self._is_duplicate_invoice_error(raw_text):
+                        return "duplicated"
+                    return f"Error 500: {body.get('ExceptionMessage') or raw_text}"
 
-                data = await res.json()
-                print(data)
+                if res.status != 200:
+                    return f"Error {res.status}: {body.get('ExceptionMessage') or raw_text}"
 
+                return body
+        
     async def add_documento_factura(self, invoice_file: dict):
         """Uploads a document for a factura (invoice) to the Cegid API."""
         url = f"{self.api_con}/api/facturas/upload"
@@ -504,87 +567,118 @@ class CegidAPI:
     async def add_subcuenta(self, name: str, sub_account_type: int, nif: str = None, email: str = None, telefono: str  = None, bill_address: dict  = None):  # 1 = client | 2 = provider
         """
         Create a Cegid sub-account.
-        ─────────────────────────
-        • sub_account_type == 1  → client (code starts with 43…, CuentaContable = 430)
-        • sub_account_type == 2  → provider (code starts with 40…, CuentaContable = 400)
-        Returns the new code, or None if creation fails.
-        """
-
-        # choose the numeric space 
-        if sub_account_type == 1: # client
-            base_code       = 43_001_000
-            cuenta_contable = 430
-            tipo_subcuenta  = 1
-        elif sub_account_type == 2: # provider
-            base_code       = 40_001_000
-            cuenta_contable = 400
-            tipo_subcuenta  = 2
+            """
+        if sub_account_type == 1:
+                base_code = 43_001_000
+                cuenta_contable = 430
+                tipo_subcuenta = 1
+        elif sub_account_type == 2:
+                base_code = 40_001_000
+                cuenta_contable = 400
+                tipo_subcuenta = 2
         else:
-            return None
+                return None
 
-        offset     = get_cegid_subcuenta_offset()
-        next_code  = str(base_code + offset).zfill(6)
+        offset = get_cegid_subcuenta_offset()
+        next_code_int = base_code + offset
         update_cegid_subcuenta_offset()
 
-        # compose the payload 
-        data: dict[str, str | int] = {
-            "Codigo"        : next_code,
-            "Descripcion"   : (name or "")[:60],
+        # Payload base
+        data: dict[str, int | str] = {
+            "Codigo": str(next_code_int),          # si la API realmente quiere 6 dígitos, ajusta aquí
+            "Descripcion": (name or "")[:60],
             "CuentaContable": cuenta_contable,
-            "TipoSubcuenta" : tipo_subcuenta,
-            "NIF"           : (nif or "")[:15],
-            "Email"         : (email or "")[:60],
-            "Telefonos"     : (telefono or "")[:30],
+            "TipoSubcuenta": tipo_subcuenta,
         }
 
+        # Campos opcionales limpios
+        if nif:
+            data["NIF"] = nif.strip()[:14]
+        if email:
+            data["Email"] = email.strip()[:60]
+        if telefono:
+            data["Telefonos"] = telefono.strip()[:30]
+
         if bill_address:
-            addr = bill_address.get("address", "")[:60]
+            addr = (bill_address.get("address") or "").strip()[:60]
             if addr:
                 data["DireccionCompleta"] = addr
 
-            data |= {
-                "CodigoPostal": (bill_address.get("postalCode") or "")[:5],
-                "Poblacion"   : (bill_address.get("city") or "")[:40],
-                "Provincia"   : (bill_address.get("province") or "")[:40],
-                "Pais"        : (bill_address.get("country_code") or "")[:2].upper(),
-            }
+            # Postal
+            postal_raw = (
+                bill_address.get("postalCode")
+                or bill_address.get("postal_code")
+                or bill_address.get("zip")
+            )
+            postal_int = _extract_postal_code(postal_raw)
+            if postal_int is not None:
+                data["CodigoPostal"] = postal_int
 
-        # POST to Cegid, retrying on duplicate-code collisions
-        url     = f"{self.api_con}/api/subcuentas/add"
+            city = (bill_address.get("city") or "").strip()[:40]
+            if city:
+                data["Poblacion"] = city
+
+            prov = (bill_address.get("province") or bill_address.get("state") or "")
+            prov = prov.strip()[:40]
+            if prov:
+                data["Provincia"] = prov
+
+            country = (
+                bill_address.get("countryCode")
+                or bill_address.get("country_code")
+                or bill_address.get("country")
+            )
+            iso2 = _norm_country(country)
+            if iso2:
+                data["Pais"] = iso2
+
+        url = f"{self.api_con}/api/subcuentas/add"
         headers = {
             "Authorization": f"Bearer {self.auth_token_con}",
-            "Content-Type" : "application/json",
+            "Content-Type": "application/json",
         }
 
         async with aiohttp.ClientSession() as session:
-            code_int  = int(next_code)
-            attempts  = 0
-
-            while attempts < 10:
-                data["Codigo"] = str(code_int).zfill(6)
-
+            code_int = next_code_int
+            for attempt in range(10):
+                data["Codigo"] = str(code_int)
                 async with session.post(url, headers=headers, json=data) as res:
                     if res.status == 401:
                         await self.renew_token_api_contabilidad()
                         continue
-
                     if res.status == 200:
                         return data["Codigo"]
-
-                    # duplicate-code → bump +1 and retry
                     if res.status == 400:
-                        detail = await res.json()
-                        msgs   = [m for v in detail.get("ModelState", {}).values() for m in v]
+                        # Mirar si es duplicado
+                        try:
+                            detail = await res.json()
+                        except:
+                            detail = {}
+                        msgs = [
+                            m
+                            for v in detail.get("ModelState", {}).values()
+                            for m in v
+                        ]
                         if any("Ya existe una subcuenta con el código" in m for m in msgs):
                             code_int += 1
-                            attempts += 1
                             continue
+                        # Postal inválido u otro error: si fue postal y no hemos limpiado, intentar una vez quitarlo
+                        if any("CodigoPostal" in k for k in detail.get("ModelState", {})):
+                            if "CodigoPostal" in data:
+                                data.pop("CodigoPostal", None)
+                                # reintenta sin cambiar código
+                                continue
+                        # Otro 400 → error definitivo
+                        raise RuntimeError(
+                            f"Add subcuenta failed (400): {detail}"
+                        )
+                    # Otros códigos
+                    text = await res.text()
+                    raise RuntimeError(
+                        f"Add subcuenta failed ({res.status}): {text}"
+                    )
 
-                    # any other error → give up
-                    detail = await res.text()
-                    raise RuntimeError(f"Add subcuenta failed ({res.status}): {detail}")
-
-        return None
+        return None 
 
 
             
@@ -592,13 +686,63 @@ async def main_test():
     cegid = CegidAPI("72")
     await cegid.renew_token_api_contabilidad()
 
-    cliente = await cegid.search_cliente("F86580578", "Semillando Sotillo", 2); print(cliente)
+    factura = {
+        "Ejercicio": "2025",
+        "Serie": "2",
+        "Documento": 654,
+        "TipoAsiento": "FacturasRecibidas",
+        "Fecha": 20250521,
+        "FechaFactura": 20250521,
+        "CuentaCliente": "40000550",
+        "NumeroFactura": "R-2025-008",
+        "Descripcion": "R-2025-008 – ANGEL JESUS PALOMINO DE LA ",
+        "TipoFactura": "OpInteriores",
+        "NombreCliente": "ANGEL JESUS PALOMINO DE LA OLIVA",
+        "ClaveRegimenIva1": "01",
+        "ProrrataIva": False,
+        "BaseImponible1": 4219.9,
+        "PorcentajeIVA1": 12,
+        "CuotaIVA1": 506.39,
+        "BaseRetencion": 4726.29,
+        "PorcentajeRetencion": 2,
+        "CuotaRetencion": 94.53,
+        "TipoRetencion": "Agricultores",
+        "TotalFactura": 4631.76,
+        "ImporteCobrado": 4631.76,
+        "FechaIntroduccionFactura": 20250521,
+        "TipoVencimiento": 1,
+        "Vencimientos": [
+            {
+                "Ejercicio": "2025",
+                "Serie": "2",
+                "Documento": 654,
+                "NumeroVencimiento": 1,
+                "FechaFactura": 20250521,
+                "CuentaCliente": "40000550",
+                "NumeroFactura": "R-2025-008",
+                "FechaVencimiento": 20250521,
+                "Importe": 4631.76,
+                "CodigoTipoVencimiento": 1
+            }
+        ],
+        "Apuntes": [
+            {
+                "Ejercicio": "2025",
+                "Serie": "2",
+                "Documento": 654,
+                "Linea": 1,
+                "Cuenta": "60100000",
+                "Concepto": "ACEITUNA ECOLÓGICA VARIEDAD VERDEJA",
+                "Fecha": 20250521,
+                "Importe": 4219.9,
+                "TipoImporte": 1
+            }
+        ]
+    }
 
-    """
-    Test if we can create a new sub-account that already exists as client, but we want to create it as provider
-    """
+    res = await cegid.crear_factura(factura)
+    print("THE RES: ", res)
 
-    # result = await cegid.check_invoice_exists('A-skjdb'); print(result); print(len(result))
 
 
 

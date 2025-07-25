@@ -1,0 +1,61 @@
+{
+  "Ejercicio": "2025",
+  "Serie": "2",
+  "Documento": 694,
+  "TipoAsiento": "FacturasRecibidas",
+
+  "Fecha": 20250521,
+  "FechaFactura": 20250521,
+
+  "CuentaCliente": "40000480",
+  "NombreCliente": "Tomás Martínez Fernández",
+  "NumeroFactura": "R-2025-007",
+  "Descripcion": "R-2025-007 – Tomás Martínez Fernández",
+  "TipoFactura": "OpInteriores",
+
+  "ClaveRegimenIva1": "01",
+  "ProrrataIva": false,
+
+  "BaseImponible1": 3276.36,
+  "PorcentajeIVA1": 12,
+  "CuotaIVA1": 393.16,
+
+  "BaseRetencion": 3669.52,
+  "PorcentajeRetencion": 2,
+  "CuotaRetencion": 73.39,
+  "TipoRetencion": "Agricultores",
+
+  "TotalFactura": 3596.13,
+  "ImporteCobrado": 3596.13,
+
+  "TipoVencimiento": 1,
+  "Vencimientos": [
+    {
+      "Ejercicio": "2025",
+      "Serie": "2",
+      "Documento": 694,
+      "NumeroVencimiento": 1,
+      "FechaFactura": 20250521,
+      "CuentaCliente": "40000480",
+      "NumeroFactura": "R-2025-007",
+      "FechaVencimiento": 20250521,
+      "Importe": 3596.13,
+      "CodigoTipoVencimiento": 1
+    }
+  ],
+
+
+  "Apuntes": [
+    {
+      "Ejercicio": "2025",
+      "Serie": "2",
+      "Documento": 694,
+      "Linea": 1,
+      "Cuenta": "60100000",
+      "Concepto": "Compra aceituna ecológica",
+      "Fecha": 20250521,
+      "Importe": 3276.36,
+      "TipoImporte": 1
+    }
+  ]
+}

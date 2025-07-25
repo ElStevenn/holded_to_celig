@@ -4,22 +4,20 @@ services:
   app:
     build: .
     container_name: app_service
-    restart: always
+    restart: unless-stopped
     depends_on:
       - redis
-      - celery_worker
-      - celery_beat
     networks: [holded_celig_network]
     ports:
-      - "8080:8000"        # host-port 8080 now; change if you like
+      - "8080:8000"                # host:container
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    # ---- NEW ----
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
-    # (or any other command that runs your web/API;
-    #  but DOES NOT start celery)
-
+      BASIC_AUTH_USER: luis
+      BASIC_AUTH_PASS: 12345
+      # cualquier otra variable que uses
+    volumes:
+      - ./src/config/credentials.json:/app/src/config/credentials.json:rw  # persiste cambios
+    command: >
+      hypercorn src.quart_app.app:app --bind 0.0.0.0:8000 --worker-class asyncio
   redis:
     image: redis:latest
     container_name: redis_service

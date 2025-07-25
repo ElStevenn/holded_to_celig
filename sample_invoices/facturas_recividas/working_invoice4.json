@@ -1,0 +1,61 @@
+{
+    "Ejercicio":        "2025",
+    "Serie":            "2",
+    "Documento":        700,                
+    "TipoAsiento":      "FacturasRecibidas",
+  
+    "Fecha":            20250521,
+    "FechaFactura":     20250521,
+  
+    "CuentaCliente":    "40001012",
+    "NombreCliente":    "Luis Ballesteros Martínez Alcocer",
+    "NumeroFactura":    "R-2025-010",
+    "Descripcion":      "R-2025-010 – Luis Ballesteros Martínez A",
+    "TipoFactura":      "OpInteriores",
+  
+    "ClaveRegimenIva1": "01",
+    "ProrrataIva":      false,
+  
+    "BaseImponible1":   1755.60,
+    "PorcentajeIVA1":   12,
+    "CuotaIVA1":        210.67,
+  
+    "BaseRetencion":        1966.27,
+    "PorcentajeRetencion":  2,
+    "CuotaRetencion":       39.33,
+    "TipoRetencion":        "Agricultores",
+
+    "TotalFactura":     1926.94,
+    "ImporteCobrado":   1926.94,
+  
+    "TipoVencimiento":  1,
+    "Vencimientos": [
+      {
+        "Ejercicio":          "2025",
+        "Serie":              "2",
+        "Documento":          700,
+        "NumeroVencimiento":  1,
+        "FechaFactura":       20250521,
+        "CuentaCliente":      "40001012",
+        "NumeroFactura":      "R-2025-010",
+        "FechaVencimiento":   20250521,
+        "Importe":            1926.94,
+        "CodigoTipoVencimiento": 1
+      }
+    ],
+  
+    "Apuntes": [
+      {
+        "Ejercicio":   "2025",
+        "Serie":       "2",
+        "Documento":   700,
+        "Linea":       1,
+        "Cuenta":      "60100000",
+        "Concepto":    "ACEITUNA ECOLÓGICA VARIEDAD VERDEJA",
+        "Fecha":       20250521,
+        "Importe":     1755.60,
+        "TipoImporte": 1         
+      }
+    ]
+  }
+  

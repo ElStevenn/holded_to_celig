@@ -1,6 +1,7 @@
 import json
 import os
 from dotenv import load_dotenv
+import random
 
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "credentials.json")
 print("Credentials file path:", CREDENTIALS_FILE)
@@ -184,6 +185,13 @@ def update_cegid_subcuenta_offset():
 
     with open(CREDENTIALS_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
+
+def generate_cif():
+    digits = f"{random.randint(0, 99999999):08d}"
+    letters = "TRWAGMYFPDXBNJZSQVHLCKE"  # 23 letras del NIF español
+    control_letter = letters[int(digits) % len(letters)]
+    return digits + control_letter
 
 if __name__ == "__main__":
     res = get_offset("dc280045a98d2dfa0b8a49f74adbd60a", "estimate"); print(res)

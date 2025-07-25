@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Configuración Integración</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --brand-600: #3b5ccc;
+      --brand-700: #2f4db0;
+      --accent-100: #eef2ff;
+      --accent-200: #e0e7ff;
+
+      --bg: #f4f5f7;
+      --fg: #1f2a37;
+      --card-bg: #ffffff;
+      --muted: #6b7280;
+      --border: #d1d5db;
+
+      --chip-bg: #e5e7eb;
+      --chip-text: #374151;
+      --offset-bg: #e0f2fe;
+      --offset-text: #075985;
+
+      --radius: 12px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow: 0 4px 18px rgba(0,0,0,.06);
+
+      --code-bg: #f3f4f6;
+      --code-fg: #111827;
+    }
+
+    * { font-family: "Inter", system-ui, sans-serif; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .navbar {
+      background: var(--card-bg);
+      box-shadow: var(--shadow-sm);
+    }
+    .navbar-brand {
+      color: var(--brand-700) !important;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .card-header {
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    h1,h2,h3,h4,h5,h6 { color: var(--fg); }
+
+    table.table { margin-bottom: 0; }
+    table.table thead th {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--accent-100);
+    }
+    table.table tbody td {
+      vertical-align: middle;
+      border-color: var(--border);
+      color: var(--fg);
+    }
+    table.table-hover tbody tr:hover {
+      background: var(--accent-200);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 .55rem;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      color: var(--chip-text);
+      font-size: .72rem;
+      margin: 0 .15rem .15rem 0;
+      line-height: 22px;
+      font-weight: 500;
+    }
+    .offset-chip {
+      background: var(--offset-bg);
+      color: var(--offset-text);
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: var(--brand-600);
+      border-color: var(--brand-600);
+    }
+    .btn-primary:hover {
+      background: var(--brand-700);
+      border-color: var(--brand-700);
+    }
+    .btn-outline-secondary {
+      border-color: var(--border);
+      color: var(--fg);
+    }
+    .btn-outline-danger {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .btn-outline-danger:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    details summary { cursor: pointer; }
+    pre {
+      background: var(--code-bg) !important;
+      color: var(--code-fg) !important;
+      border-radius: var(--radius);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.03);
+      padding: 1rem;
+      font-size: .85rem;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      color: var(--fg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .modal-header, .modal-footer { border-color: var(--border); }
+
+    .linea-cuenta input { flex: 1 1 auto; }
+    .btnQuitarLinea { line-height: 1; }
+
+    .filter-input {
+      max-width: 260px;
+      border-radius: var(--radius);
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 2000;
+    }
+    .toast {
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .text-truncate {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .modal-dialog-scrollable .modal-body {
+        max-height: calc(100vh - 210px);
+        overflow-y: auto;
+        }
+
+    .tooltip-clean .tooltip-inner{
+        max-width: 260px;          /* evita tooltips gigantes */
+        padding: .65rem .8rem;
+        background: #1f2937;       /* gris oscuro elegante */
+        color: #f9fafb;
+        font-size: .8rem;
+        line-height: 1.25;
+        border-radius: .5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    }
+    .tooltip-clean .tooltip-arrow::before{
+        border-top-color: #1f2937 !important;
+    }
+
+    .btn-icon-text{
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;          /* separación icono-texto */
+      padding: .25rem .6rem;/* ajusta si quieres aún más compacto */
+    }
+    .btn-icon-text .bi{
+      line-height: 1;       /* evita que “engorde” verticalmente */
+      font-size: 1rem;      /* opcional: ajusta tamaño del icono */
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg mb-4">
+  <div class="container-fluid">
+    <span class="navbar-brand">Integración Holded ↔ Cegid</span>
+  </div>
+</nav>
+
+<div class="container mb-5">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mt-2">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <h1 class="h4 mb-4 fw-semibold">Configuración actual</h1>
+
+  <details class="mb-4">
+    <summary class="fw-bold">Ver JSON completo</summary>
+    <pre class="mt-2" style="max-height: 400px; overflow:auto;">{{ config | tojson(indent=2) }}</pre>
+  </details>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex flex-wrap gap-3 justify-content-between align-items-center">
+          <span>Cuentas Holded</span>
+          <div class="d-flex gap-2">
+            <input type="text" placeholder="Filtrar empresas..." class="form-control form-control-sm filter-input" id="filterInput">
+            <button class="btn btn-sm btn-primary btn-icon-text"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalHoldedNuevo">
+            <i class="bi bi-plus-lg"></i><span>Nueva</span>
+          </button>
+    
+          </div>
+        </div>
+        <div class="card-body p-0">
+          {% if config.holded_accounts %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" id="tablaHolded">
+                <thead>
+                    <tr>
+                      <th>Empresa</th>
+                      <th>Código</th>
+                      <th>Tipo</th>
+                      <th>Cuentas a migrar</th>
+                      <th class="text-nowrap">Offsets</th>
+                      <th class="text-nowrap">Acciones</th>
+                    </tr>
+                  </thead>                  
+              <tbody>
+              {% for acc in config.holded_accounts %}
+                <tr>
+                    <td class="empresa-cell">{{ acc.nombre_empresa }}</td>
+                    <td>{{ acc.codigo_empresa }}</td>
+                    <td>{{ acc.tipo_cuenta }}</td>
+                  <td>
+                    {% for c in acc.cuentas_a_migrar %}
+                      <span class="chip">{{ c }}</span>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    {% for o in acc.offset_cuentas_a_migrar %}
+                      <span class="chip offset-chip">{{ o }}</span>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    <button
+                      class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalHoldedEditar"
+                      data-acc='{{ acc | tojson | safe }}'
+                      title="Editar">
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                  
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+            <p class="p-3 mb-0">No hay cuentas de Holded registradas.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header">Cegid (solo lectura)</div>
+        <div class="card-body small">
+          <p><strong>Usuario:</strong> {{ config.cegid.username }}</p>
+          <p><strong>Subcuenta offset:</strong> {{ config.cegid.subcuenta_offset }}</p>
+          <hr>
+          <h6 class="mb-2">API Contabilidad</h6>
+          <p><strong>clientId:</strong> {{ config.cegid.api_contavilidad.clientId }}</p>
+          <div class="text-truncate"><strong>auth_token:</strong> {{ config.cegid.api_contavilidad.auth_token }}</div>
+          <hr>
+          <h6 class="mb-2">API ERP</h6>
+          <p><strong>clientId:</strong> {{ config.cegid.api_erp.clientId }}</p>
+          <div class="text-truncate"><strong>auth_token:</strong> {{ config.cegid.api_erp.auth_token }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo -->
+  <div class="modal fade" id="modalHoldedNuevo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="formHoldedNuevo" action="{{ url_for('crear_holded') }}" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title">Nueva cuenta Holded</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre empresa</label>
+                    <input class="form-control" name="nombre_empresa" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">API Key</label>
+                    <input class="form-control" name="api_key" required>
+                  </div>
+                  
+                  <div class="col-md-4">
+                    <label class="form-label">
+                        Código empresa
+                        <i class="bi bi-info-circle ms-1 text-muted small"
+                           role="button"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           data-bs-html="true"
+                           data-bs-custom-class="tooltip-clean"
+                           data-bs-title="
+                             <strong>Código Empresa:</strong> Identificador de la empresa en Cegid.<br>
+                           ">
+                        </i>
+                      </label>
+                    <input class="form-control" name="codigo_empresa" required>
+                  </div>
+                  
+                  <div class="col-md-4">
+                    <label class="form-label">
+                        Offset documento
+                        <i class="bi bi-info-circle ms-1 text-muted small"
+                           role="button"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           data-bs-html="true"
+                           data-bs-custom-class="tooltip-clean"
+                           data-bs-title="
+                             <strong>Offfset Documento:</strong>Es el útltimo numero de documento de la factura en cegid.<br>
+                           ">
+                        </i>
+                      </label>
+                    <input class="form-control" name="offset_documento" type="number" required>
+                  </div>
+                  
+                  <div class="col-md-4">
+                    <label class="form-label">
+                        Tipo de cuenta
+                        <i class="bi bi-info-circle ms-1 text-muted small"
+                           role="button"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           data-bs-html="true"
+                           data-bs-custom-class="tooltip-clean"
+                           data-bs-title="
+                             <strong>Tipo de cuenta:</strong> Indica qué motor / flujo usa la integración para crear las facturas en Cegid.<br>
+                           ">
+                        </i>
+                      </label>
+                    <select class="form-select" name="tipo_cuenta" required>
+                      <option value="normal">normal</option>
+                      <option value="nuevo_sistema">nuevo_sistema</option>
+                    </select>
+                  </div>
+            </div>
+
+            <hr class="my-3">
+
+            <h6 class="mb-2">Cuentas a migrar</h6>
+            <div id="contenedor-cuentas-nuevo" class="row g-2"></div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="btnAgregarLineaNuevo">
+              <i class="bi bi-plus-lg"></i> Añadir línea
+            </button>
+
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <button class="btn btn-primary" type="submit">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+    <!-- Modal Editar -->
+    <div class="modal fade" id="modalHoldedEditar" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form id="formHoldedEditar" method="post" novalidate>
+            <input type="hidden" id="editHoldedId" name="id">
+
+            <div class="modal-header">
+              <h5 class="modal-title">Editar cuenta Holded</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+              <!-- Campos principales -->
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Nombre empresa</label>
+                  <input class="form-control" name="nombre_empresa" required>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">API Key</label>
+                  <input class="form-control" name="api_key" required autocomplete="off">
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label">
+                    Código empresa
+                    <i class="bi bi-info-circle ms-1 text-muted small"
+                      role="button"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      data-bs-html="true"
+                      data-bs-custom-class="tooltip-clean"
+                      data-bs-title="<strong>Código de empresa:</strong> Identificador en Cegid tal cual aparece allí."></i>
+                  </label>
+                  <input class="form-control" name="codigo_empresa" required>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label">
+                    Offset documento
+                    <i class="bi bi-info-circle ms-1 text-muted small"
+                      role="button"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      data-bs-html="true"
+                      data-bs-custom-class="tooltip-clean"
+                      data-bs-title="<strong>Offset documento:</strong> Último número utilizado en Cegid para este tipo de documento; sirve para continuar la numeración."></i>
+                  </label>
+                  <input class="form-control" name="offset_documento" type="number" required>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label">
+                    Tipo de cuenta
+                    <i class="bi bi-info-circle ms-1 text-muted small"
+                      role="button"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      data-bs-html="true"
+                      data-bs-custom-class="tooltip-clean"
+                      data-bs-title="<strong>Tipo de cuenta:</strong> Motor interno que usa la integración para crear facturas.<br><em>Recomendado:</em> <code>nuevo_sistema</code>. Si falla, prueba con <code>normal</code>."></i>
+                  </label>
+                  <select class="form-select" name="tipo_cuenta" required>
+                    <option value="normal">normal</option>
+                    <option value="nuevo_sistema">nuevo_sistema</option>
+                  </select>
+                </div>
+              </div><!-- /row g-3 -->
+
+              <hr class="my-4">
+
+              <h6 class="mb-2">Cuentas a migrar</h6>
+              <div id="contenedor-cuentas-editar" class="row g-2"></div>
+              <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="btnAgregarLineaEditar">
+                <i class="bi bi-plus-lg"></i> Añadir línea
+              </button>
+            </div><!-- /modal-body -->
+
+            <div class="modal-footer justify-content-between">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+
+              <button type="button" class="btn btn-outline-danger me-auto" id="btnEliminarHolded" title="Eliminar cuenta">
+                <i class="bi bi-trash3"></i>
+              </button>
+
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success" id="btnExportarCegid">
+                  <i class="bi bi-cloud-arrow-up me-1"></i> Exportar facturas a Cegid
+                </button>
+
+                <button type="submit" class="btn btn-primary" id="btnActualizar">
+                  Actualizar
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  
+
+</div><!-- /container -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  /* =========================
+   * Utils
+   * ========================= */
+  let currentAccId = null; // opcional, por si lo quieres para debug
+  
+  const crearFilaCuenta = (nombre = "", offset = "") => {
+    const row = document.createElement("div");
+    row.className = "col-12 d-flex align-items-center gap-2 linea-cuenta";
+    row.innerHTML = `
+      <input class="form-control" name="cuentas_a_migrar[]" placeholder="invoice / estimate / purchase ..." value="${nombre}">
+      <input class="form-control" name="offset_cuentas_a_migrar[]" type="number" placeholder="offset" value="${offset}">
+      <button type="button" class="btn btn-sm btn-outline-danger btnQuitarLinea" title="Quitar">×</button>
+    `;
+    return row;
+  };
+  
+  const bindDynamicList = (contenedor, boton) => {
+    boton.addEventListener("click", () => contenedor.appendChild(crearFilaCuenta()));
+    contenedor.addEventListener("click", (e) => {
+      if (e.target.classList.contains("btnQuitarLinea")) {
+        e.target.closest(".linea-cuenta").remove();
+      }
+    });
+  };
+  
+  const showToast = (title, body) => {
+    const container = document.getElementById("toastContainer");
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="toast align-items-center text-bg-dark border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            <strong>${title}</strong><br>${body.replace(/\n/g,"<br>")}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+      </div>`;
+    const toastEl = wrapper.firstElementChild;
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, { delay: 8000 });
+    toast.show();
+    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+  };
+  
+  const filterTable = () => {
+    const term = document.getElementById("filterInput").value.toLowerCase();
+    document.querySelectorAll("#tablaHolded tbody tr").forEach(row => {
+      const empresa = row.querySelector(".empresa-cell")?.textContent.toLowerCase() || "";
+      row.style.display = empresa.includes(term) ? "" : "none";
+    });
+  };
+  
+  /* =========================
+   * Inicio
+   * ========================= */
+  document.addEventListener("DOMContentLoaded", function () {
+  
+    // --- Listas dinámicas (Nuevo) ---
+    const contNuevo = document.getElementById("contenedor-cuentas-nuevo");
+    const btnNuevo  = document.getElementById("btnAgregarLineaNuevo");
+    contNuevo.appendChild(crearFilaCuenta());
+    bindDynamicList(contNuevo, btnNuevo);
+  
+    // --- Listas dinámicas (Editar) ---
+    const contEditar    = document.getElementById("contenedor-cuentas-editar");
+    const btnEditarLine = document.getElementById("btnAgregarLineaEditar");
+    bindDynamicList(contEditar, btnEditarLine);
+  
+    // --- Elementos del modal Editar ---
+    const editarModal   = document.getElementById("modalHoldedEditar");
+    const hiddenIdInput = document.getElementById("editHoldedId");
+    const btnExportar   = document.getElementById("btnExportarCegid");
+    const btnActualizar = document.getElementById("btnActualizar");
+    const formEdit      = document.getElementById("formHoldedEditar");
+    const btnEliminar   = document.getElementById("btnEliminarHolded");
+  
+    // --- FORM NUEVO (fetch) ---
+    document.getElementById("formHoldedNuevo").addEventListener("submit", async (e) => {
+      e.preventDefault();
+  
+      const form = e.currentTarget;
+      const fd   = new FormData(form);
+      const btn  = form.querySelector('[type="submit"]');
+  
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+        }
+  
+        const resp = await fetch("/holded/nuevo", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(text || "Error al crear la cuenta");
+        }
+        window.location.reload();
+  
+      } catch (err) {
+        console.error(err);
+        showToast("Error", err.message || "No se pudo crear la cuenta");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Guardar";
+        }
+      }
+    });
+  
+    // --- Modal Editar: cargar datos cuando se abre ---
+    editarModal.addEventListener("show.bs.modal", (ev) => {
+      const button = ev.relatedTarget;                   // botón que abre el modal
+      const data   = JSON.parse(button.getAttribute("data-acc"));
+      
+      formEdit.reset();
+  
+      // Guardar ID en hidden + opcionalmente en global
+      currentAccId        = data.id || null;
+      hiddenIdInput.value = currentAccId || "";
+      btnExportar.dataset.id   = data.id || "";
+      btnActualizar.dataset.id = data.id || ""; 
+      btnEliminar.dataset.id   = data.id || "";
+      console.log('DATA MODAL', data);
+      console.log('ID guardado:', currentAccId);
+
+  
+      // Action del form
+      formEdit.action = `/holded/${data.id}/editar`;
+  
+      // Campos simples
+      ["nombre_empresa","api_key","codigo_empresa","offset_documento","tipo_cuenta"].forEach(k=>{
+        const el = formEdit.querySelector(`[name="${k}"]`);
+        if (el) el.value = data[k] ?? "";
+      });
+  
+      // Líneas dinámicas
+      contEditar.innerHTML = "";
+      (data.cuentas_a_migrar || []).forEach((c, i) => {
+        const off = (data.offset_cuentas_a_migrar || [])[i] || "";
+        contEditar.appendChild(crearFilaCuenta(c, off));
+      });
+      if (contEditar.children.length === 0) contEditar.appendChild(crearFilaCuenta());
+    });
+  
+    // --- Submit EDITAR ---
+    formEdit.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const url = formEdit.action;                 // <-- usa la action ya seteada
+      const fd  = new FormData(formEdit);
+
+      try {
+        btnActualizar.disabled = true;
+        btnActualizar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Actualizando...';
+
+        const resp = await fetch(url, { method: "POST", body: fd, redirect: "follow" });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(text || "Error al actualizar la cuenta");
+        }
+
+        // fuerza recarga para ver los cambios + flashes
+        location.reload();
+      } catch (err) {
+        console.error(err);
+        showToast("Error", err.message || "No se pudo actualizar la cuenta");
+      } finally {
+        btnActualizar.disabled = false;
+        btnActualizar.textContent = "Actualizar";
+      }
+    });
+
+
+  
+    // --- Exportar facturas ---
+    btnExportar.addEventListener("click", async () => {
+      const accountId = btnExportar.dataset.id || hiddenIdInput.value || currentAccId;
+      if (!accountId) {
+        showToast("Error", "No se encontró el ID de la cuenta.");
+        return;
+      }
+  
+      if (!confirm("¿Iniciar la exportación de facturas de Holded a Cegid?")) return;
+  
+      try {
+        btnExportar.disabled = true;
+        btnExportar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+  
+        const resp = await fetch(`/holded/${accountId}/exportar`, { method: "POST" });
+        const json = await resp.json();
+        if (!resp.ok || !json.ok) throw new Error(json.error || "Error desconocido al iniciar la exportación");
+  
+        const taskId = json.task_id;
+        showToast("Proceso iniciado", `Exportación lanzada. Task ID: ${taskId}`);
+        pollTaskStatus(taskId);
+      } catch (err) {
+        console.error(err);
+        showToast("Error", err.message || "No se pudo iniciar el volcado.");
+      } finally {
+        btnExportar.disabled = false;
+        btnExportar.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i> Exportar facturas a Cegid';
+      }
+    });
+
+    btnEliminar.addEventListener("click", async () => {
+      const accountId = btnEliminar.dataset.id || hiddenIdInput.value || currentAccId;
+      if (!accountId) {
+        showToast("Error", "No se pudo determinar el ID de la cuenta.");
+        return;
+      }
+
+      if (!confirm("¿Seguro que quieres eliminar esta cuenta? Esta acción no se puede deshacer.")) return;
+
+      try {
+        btnEliminar.disabled = true;
+        btnEliminar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Borrando...';
+
+        const resp = await fetch(`/holded/${accountId}/eliminar`, { method: "POST" });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(text || "No se pudo eliminar la cuenta");
+        }
+
+        // el backend redirige con flash -> recarga para reflejar cambios
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        showToast("Error", err.message || "No se pudo eliminar la cuenta");
+      } finally {
+        btnEliminar.disabled = false;
+        btnEliminar.innerHTML = '<i class="bi bi-trash3"></i>';
+      }
+    });
+
+  
+    // --- Filtro tabla ---
+    document.getElementById("filterInput").addEventListener("input", filterTable);
+  
+    // --- Tooltips ---
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(t => new bootstrap.Tooltip(t));
+  
+  }); // DOMContentLoaded
+  
+  
+
+  // Polling de estado del task (fuera para que lo use el handler)
+  async function pollTaskStatus(taskId, intervalMs = 2000, maxTries = 120) {
+    let tries = 0;
+    while (tries < maxTries) {
+      tries++;
+      try {
+        const r = await fetch(`/tasks/${taskId}`);
+        const j = await r.json();
+        if (!j.exists || j.done) {
+          showToast("Exportación finalizada", "El proceso ha terminado (revisa logs/flash para detalles).");
+          return;
+        }
+      } catch (e) {
+        console.error("Error al consultar el estado:", e);
+        showToast("Aviso", "No se pudo consultar el estado del proceso. Revisa logs.");
+        return;
+      }
+      await new Promise(res => setTimeout(res, intervalMs));
+    }
+    showToast("Aviso", "El proceso sigue corriendo (timeout de polling). Consulta el servidor.");
+  }
+  </script>
+  
+</body>
+</html>
