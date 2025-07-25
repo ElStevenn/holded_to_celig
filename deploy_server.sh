@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==== CONFIG ====
-DOMAIN="integracion-luis.paumateu.com "
+DOMAIN="integracion-luis.paumateu.com"
 EMAIL="paumat17@gmail.com"
 APP_DIR="/home/ubuntu/holded_to_celig"   # path with docker-compose.yml
 SERVICE="app"                            # compose service name
