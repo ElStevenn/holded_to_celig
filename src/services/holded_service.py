@@ -4,6 +4,7 @@ import json
 import base64
 import requests
 import os
+import logging
 
 from src.config.settings import HOLDED_ACCOUNTS
 
@@ -28,7 +29,7 @@ class HoldedAPI:
                 response_text = await res.text()
 
                 if res.status != 200:
-                    print(f"Error: {res.status} - {response_text}")
+                    logging.getLogger(__name__).error(f"[Holded] list_invoices error {res.status}: {response_text}")
                     return []
 
                 # Force JSON parsing manually
@@ -37,7 +38,7 @@ class HoldedAPI:
               
                     return data  
                 except json.JSONDecodeError as e:
-                    print(f"JSON Parsing Error: {e}")
+                    logging.getLogger(__name__).warning(f"[Holded] JSON parsing error: {e}")
                     return []
 
 
@@ -50,7 +51,7 @@ class HoldedAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as res:
                 if res.status != 200:
-                    print(f"Error getting invoice details for {document_id}")
+                    logging.getLogger(__name__).error(f"[Holded] Error getting invoice details for {document_id}")
                     return None
                 try:
                     return await res.json()
@@ -81,7 +82,7 @@ class HoldedAPI:
             try:
                 async with session.get(url, headers=headers) as res:
                     if res.status != 200:
-                        print(f"Error downloading PDF for {document_id}")
+                        logging.getLogger(__name__).error(f"[Holded] Error downloading PDF for {document_id}")
                         return None
                     data = await res.json()
                     if data.get("status") != 1 or "data" not in data:
@@ -105,7 +106,7 @@ class HoldedAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as res:
                 if res.status != 200:
-                    print(f"Error {res.status} fetching invoice PDF for {document_id}")
+                    logging.getLogger(__name__).error(f"[Holded] Error {res.status} fetching invoice PDF for {document_id}")
                     return None
                 try:
                     resp_bytes = await res.read()
@@ -116,7 +117,7 @@ class HoldedAPI:
                     # If you just need the raw base64 string, return it:
                     return base64_pdf
                 except Exception as e:
-                    print("Error reading PDF JSON data:", e)
+                    logging.getLogger(__name__).exception("[Holded] Error reading PDF JSON data: %s", e)
                     return None
 
 async def fetch_and_prepare_invoices(holded_api, starttmp=None, endtmp=None):

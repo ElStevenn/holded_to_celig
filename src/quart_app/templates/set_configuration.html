@@ -290,6 +290,12 @@
                       title="Editar">
                       <i class="bi bi-pencil-square"></i>
                     </button>
+                    <button
+                      class="btn btn-sm btn-outline-secondary btnVerInvocs"
+                      data-acc='{{ acc | tojson | safe }}'
+                      title="Invocaciones">
+                      <i class="bi bi-clock-history"></i>
+                    </button>
                   
                   </td>
                 </tr>
@@ -521,6 +527,26 @@
 
   
 
+<!-- Modal Logs de exportación -->
+<div class="modal fade" id="modalLogs" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Logs de exportación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="logsMeta" class="small text-muted mb-2"></div>
+        <pre id="logsOutput" style="max-height: 420px; overflow:auto;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopiarLogs">Copiar</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
 </div><!-- /container -->
 
 <div class="toast-container" id="toastContainer"></div>
@@ -532,6 +558,9 @@
    * Utils
    * ========================= */
   let currentAccId = null; // opcional, por si lo quieres para debug
+  let logsTimer = null;
+  let logsOffset = 0;
+  let streamingTaskId = null;
   
   const crearFilaCuenta = (nombre = "", offset = "") => {
     const row = document.createElement("div");
@@ -603,6 +632,35 @@
     const btnActualizar = document.getElementById("btnActualizar");
     const formEdit      = document.getElementById("formHoldedEditar");
     const btnEliminar   = document.getElementById("btnEliminarHolded");
+    // Logs modal elements
+    const logsModalEl   = document.getElementById("modalLogs");
+    const logsModal     = new bootstrap.Modal(logsModalEl);
+    const logsOutput    = document.getElementById("logsOutput");
+    const logsMeta      = document.getElementById("logsMeta");
+    // Discreto: botones de invocaciones
+    document.querySelectorAll('.btnVerInvocs').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        try {
+          const data = JSON.parse(btn.getAttribute('data-acc'));
+          const accId = data.id;
+          const r = await fetch(`/tasks?account_id=${encodeURIComponent(accId)}&limit=20`);
+          const j = await r.json();
+          const invocs = (j.invocations || []);
+          logsOutput.textContent = invocs.length ? invocs.map(v => {
+            const created = v.created_at || '-';
+            const status  = v.status || '-';
+            const empresa = v.empresa || '';
+            const tipos   = (v.doc_types || []).join(',');
+            return `[${created}] (${status}) ${empresa} [${tipos}]  id=${v.task_id}`;
+          }).join('\n') : 'Sin invocaciones recientes.';
+          logsMeta.textContent = `Invocaciones recientes – Empresa: ${data.nombre_empresa}`;
+          logsModal.show();
+        } catch (err) {
+          console.error(err);
+          showToast('Error', 'No se pudo cargar el historial de invocaciones');
+        }
+      });
+    });
   
     // --- FORM NUEVO (fetch) ---
     document.getElementById("formHoldedNuevo").addEventListener("submit", async (e) => {
@@ -721,6 +779,7 @@
   
         const taskId = json.task_id;
         showToast("Proceso iniciado", `Exportación lanzada. Task ID: ${taskId}`);
+        startLogStreaming(taskId);
         pollTaskStatus(taskId);
       } catch (err) {
         console.error(err);
@@ -794,6 +853,53 @@
     }
     showToast("Aviso", "El proceso sigue corriendo (timeout de polling). Consulta el servidor.");
   }
+  
+  function startLogStreaming(taskId) {
+    streamingTaskId = taskId;
+    logsOffset = 0;
+    const logsOut = document.getElementById('logsOutput');
+    const logsM   = document.getElementById('logsMeta');
+    logsOut.textContent = "";
+    logsM.textContent = `Task ID: ${taskId}`;
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalLogs')) || new bootstrap.Modal(document.getElementById('modalLogs'));
+    modal.show();
+
+    if (logsTimer) clearInterval(logsTimer);
+    logsTimer = setInterval(async () => {
+      try {
+        const r = await fetch(`/tasks/${taskId}/logs?start=${logsOffset}`);
+        const j = await r.json();
+        if (j && j.ok) {
+          const entries = j.logs || [];
+          if (entries.length) {
+            const lines = entries.map(e => `[${e.ts}] ${e.level} ${e.name} - ${e.message}`);
+            logsOut.textContent += (logsOut.textContent ? "\n" : "") + lines.join("\n");
+            logsOffset += entries.length;
+            logsOut.scrollTop = logsOut.scrollHeight;
+          }
+        }
+        const s = await fetch(`/tasks/${taskId}`);
+        const sj = await s.json();
+        if (!sj.exists || sj.done) {
+          clearInterval(logsTimer);
+          logsTimer = null;
+        }
+      } catch (e) {
+        console.error("Error streaming logs:", e);
+      }
+    }, 1200);
+  }
+
+  document.addEventListener('click', async (e) => {
+    if (e.target && e.target.id === 'btnCopiarLogs') {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('logsOutput').textContent || "");
+        showToast('Copiado', 'Logs copiados al portapapeles');
+      } catch (err) {
+        showToast('Error', 'No se pudieron copiar los logs');
+      }
+    }
+  });
   </script>
   
 </body>

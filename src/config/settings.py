@@ -2,9 +2,10 @@ import json
 import os
 from dotenv import load_dotenv
 import random
+import logging
 
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "credentials.json")
-print("Credentials file path:", CREDENTIALS_FILE)
+logging.getLogger(__name__).debug("[Config] Credentials file path: %s", CREDENTIALS_FILE)
 try:
     with open(CREDENTIALS_FILE, "r") as f:
         credentials = json.load(f)

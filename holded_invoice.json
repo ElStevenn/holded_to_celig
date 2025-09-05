@@ -1,0 +1,59 @@
+{
+    "id": "67bf02617d7ca51f5c05914e",
+    "contact": "67ac7a804eab39efa701cafc",
+    "contactName": "MOVISTAR PROSEGUR ALARMAS, S.L.",
+    "desc": "",
+    "date": 1740697200,
+    "dueDate": null,
+    "multipledueDate": [],
+    "forecastDate": null,
+    "notes": "",
+    "tags": [
+        "almazara",
+        "produccion"
+    ],
+    "products": [
+        {
+            "name": "ALARMA",
+            "desc": " Lugar de Instalación: CR HUETE  S/N , NAVES (16510) VELLISCA - CUENCA",
+            "price": 23.14,
+            "units": 1,
+            "projectid": null,
+            "tax": 21,
+            "taxes": [
+                "p_iva_21"
+            ],
+            "tags": [
+                "almazara",
+                "produccion"
+            ],
+            "discount": 0,
+            "retention": 0,
+            "weight": 0,
+            "costPrice": 0,
+            "sku": 0,
+            "account": "64227fd364fcfe702b0945b4"
+        }
+    ],
+    "tax": 4.86,
+    "subtotal": 23.14,
+    "discount": 0,
+    "total": 28,
+    "language": "",
+    "status": 1,
+    "customFields": [],
+    "docNumber": "E632502478824",
+    "currency": "eur",
+    "currencyChange": 1,
+    "paymentsDetail": [
+        {
+            "id": "67bf026ce891a45abf00095a",
+            "amount": 28,
+            "date": 1740697200,
+            "bankId": "64254034bfaa10ac2a0abab2"
+        }
+    ],
+    "paymentsTotal": 28,
+    "paymentsPending": 0,
+    "paymentsRefunds": 0
+}

@@ -6,6 +6,7 @@ import base64
 import time
 import re
 import unicodedata
+import logging
 from src.config.settings import update_cegid_subcuenta_offset, get_cegid_subcuenta_offset
 from urllib.parse import quote_plus
 
@@ -116,10 +117,10 @@ class CegidAPI:
 
                 auth_token = data.get("auth_token")
                 if auth_token:
-                    print("New auth token generated: ", auth_token)
+                    logging.getLogger(__name__).info("[Cegid] New ERP auth token generated")
                     update_token_erp(auth_token)
                 else:
-                    print("Auth token not found in the response")
+                    logging.getLogger(__name__).warning("[Cegid] ERP auth token not found in response")
 
     def _is_duplicate_invoice_error(self, text: str) -> bool:
         t = text.lower()
@@ -170,10 +171,10 @@ class CegidAPI:
                 try:
                     response_json = json.loads(response_text)  
                 except json.JSONDecodeError:
-                    print(f"Failed to decode JSON. Raw response:\n{response_text}")
+                    logging.getLogger(__name__).warning(f"[Cegid] Failed to decode JSON. Raw response: {response_text}")
                     return None
 
-                print("Full API Response:", json.dumps(response_json, indent=4))
+                logging.getLogger(__name__).debug("[Cegid] Full API Response: %s", json.dumps(response_json, indent=4))
 
                 if res.status == 401:
                     await self.renew_token_api_contabilidad()
@@ -380,10 +381,10 @@ class CegidAPI:
                 try:
                     response_json = json.loads(response_text)  
                 except json.JSONDecodeError:
-                    print(f"Failed to decode JSON. Raw response:\n{response_text}")
+                    logging.getLogger(__name__).warning(f"[Cegid] Failed to decode JSON. Raw response: {response_text}")
                     return None
 
-                print("Full API Response:", json.dumps(response_json, indent=4))
+                logging.getLogger(__name__).debug("[Cegid] Full API Response: %s", json.dumps(response_json, indent=4))
 
                 if res.status != 200:
                     return response_json
@@ -399,7 +400,7 @@ class CegidAPI:
         
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as res:
-                print(res.status)
+                logging.getLogger(__name__).debug("[Cegid] get_empresas status: %s", res.status)
                 if res.status != 200:
                     return None
 
@@ -420,7 +421,7 @@ class CegidAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as res:
                 response_json = await res.json()
-                print("Response ->", response_json) 
+                logging.getLogger(__name__).debug("[Cegid] get_codigo_empresa response: %s", response_json)
 
                 if res.status != 200:
                     return None
@@ -444,15 +445,14 @@ class CegidAPI:
                     return await self.check_invoice_exists(invoice_number)
 
                 if res.status != 200:
-                    print(f"[WARN] Unexpected status {res.status}: {await res.text()}")
+                    logging.getLogger(__name__).warning(f"[Cegid] Unexpected status {res.status}: {await res.text()}")
                     return None
 
                 payload = await res.json()
-                # print("Response ->", json.dumps(payload, indent=4))
                 # Most Cegid endpoints respond with {"value":[…]}
                 invoices = payload.get("Datos")
 
-                print(type(invoices))
+                logging.getLogger(__name__).debug("[Cegid] check_invoice_exists invoices type: %s", type(invoices))
 
                 return invoices
     
@@ -496,17 +496,17 @@ class CegidAPI:
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=body, headers=headers) as res:
-                print(res.status)
+                logging.getLogger(__name__).debug("[Cegid] add_serie status: %s", res.status)
                 if res.status == 401:
                     await self.renew_token_api_contabilidad()
                     return await self.add_serie(codigo, descripcion, actividad)
 
                 if res.status != 200:
                     error = await res.json()
-                    print(f"An error ocurred: {res.status} : {error}")
+                    logging.getLogger(__name__).error(f"[Cegid] add_serie error {res.status}: {error}")
 
                 data = await res.json()
-                print("Response -> ", data )
+                logging.getLogger(__name__).debug("[Cegid] add_serie response: %s", data)
 
     # SUBCUENTAS (cientes)
     async def get_subcuentas(self, tipo_subcuenta: int = 1, top: int = 200):

@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import logging
 from services.sync_service import AsyncService
 
 STOP = False
@@ -11,11 +12,11 @@ def handler_stop(*_):
 async def run_periodic(interval_sec: int = 900):
     async_service = AsyncService()
     while not STOP:
-        print("[SYNC] Lanzando sincronización Holded → Cegid …")
+        logging.getLogger(__name__).info("[SYNC] Lanzando sincronización Holded → Cegid …")
         try:
             await async_service.fetch_holded_accounts(apply_offset=True)
         except Exception as exc:
-            print("[ERROR] sincronizando:", exc)
+            logging.getLogger(__name__).exception("[SYNC] Error sincronizando: %s", exc)
         # espera con cancelación elegante
         for _ in range(interval_sec):
             if STOP:

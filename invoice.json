@@ -1,0 +1,49 @@
+{
+    "Ejercicio": "2025",
+    "Serie": "2",
+    "Documento": 807,
+    "TipoAsiento": "FacturasRecibidas",
+    "Fecha": 20250228,
+    "FechaFactura": 20250228,
+    "CuentaCliente": "40001037",
+    "NumeroFactura": "E632502478824",
+    "Descripcion": "E632502478824 – MOVISTAR PROSEGUR ALARMA",
+    "TipoFactura": "OpInteriores",
+    "NombreCliente": "MOVISTAR PROSEGUR ALARMAS, S.L.",
+    "ClaveRegimenIva1": "01",
+    "ProrrataIva": false,
+    "BaseImponible1": 23.14,
+    "PorcentajeIVA1": 21,
+    "CuotaIVA1": 4.86,
+    "TotalFactura": 28.0,
+    "ImporteCobrado": 28,
+    "FechaIntroduccionFactura": 20250228,
+    "TipoVencimiento": 1,
+    "Vencimientos": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 807,
+            "NumeroVencimiento": 1,
+            "FechaFactura": 20250228,
+            "CuentaCliente": "40001037",
+            "NumeroFactura": "E632502478824",
+            "FechaVencimiento": 20250228,
+            "Importe": 28.0,
+            "CodigoTipoVencimiento": 1
+        }
+    ],
+    "Apuntes": [
+        {
+            "Ejercicio": "2025",
+            "Serie": "2",
+            "Documento": 807,
+            "Linea": 1,
+            "Cuenta": "60100000",
+            "Concepto": "ALARMA",
+            "Fecha": 20250228,
+            "Importe": 23.14,
+            "TipoImporte": 1
+        }
+    ]
+}

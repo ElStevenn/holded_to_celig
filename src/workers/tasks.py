@@ -1,6 +1,7 @@
 from celery import shared_task
 from src.services.sync_service import AsyncService 
 import asyncio
+import logging
 
 
 @shared_task
@@ -10,5 +11,5 @@ def main_periodic_tasks():
     asyncio.run(holded_to_cegid(async_service))
 
 async def holded_to_cegid(async_service: AsyncService) -> int:
-    print("Runnign holded_to_cegid service")
+    logging.getLogger(__name__).info("[Worker] Running holded_to_cegid service")
     

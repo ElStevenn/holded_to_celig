@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import pytz
 import re
 import base64
@@ -17,6 +18,8 @@ from src.config.settings import HOLDED_ACCOUNTS, increment_offset, get_offset, s
 
 tz = pytz.timezone('Europe/Madrid')
 VALID_VAT_RATES = {0, 4, 10, 12, 21} 
+
+logger = logging.getLogger(__name__)
 
 class AsyncService:
     def __init__(self):
@@ -36,10 +39,10 @@ class AsyncService:
 
             for doc_type in acc["cuentas_a_migrar"]:
                 tasks.append(self.process_account_invoices(h_api, cegid_api, acc["nombre_empresa"], acc["tipo_cuenta"], doc_type))
-                print("MIGRANDO CUENTA: ", doc_type)
+                logger.info(f"[EXPORT] Migrando doc_type='{doc_type}'")
                 
             break
-        print(f"Total Holded accounts to process: {len(tasks)}")
+        logger.info(f"[EXPORT] Total tareas a procesar: {len(tasks)}")
         await asyncio.gather(*tasks)
 
     async def process_account_invoices(self, holded_api: "HoldedAPI", cegid_api: "CegidAPI", nombre_empresa, tipo_cuenta: str, doc_type: str = "invoice"):
@@ -54,7 +57,7 @@ class AsyncService:
         for i, inv_header in enumerate(invoices):
             res_created_invoice = None
             cli_name = None
-            print("Migration num:", i)
+            logger.debug(f"[EXPORT] Migration num: {i}")
             if i >= max_per_migration:
                 break
 
@@ -116,20 +119,20 @@ class AsyncService:
                 while True:
                     # Create invpice normal if tipo_cuenta is normal and doc_type is not purchase
                     if tipo_cuenta == "normal" and doc_type != "purchase":
-                        print("Creando factura NORMAL")
+                        logger.info("[EXPORT] Creando factura NORMAL")
                         res_created_invoice = await cegid_api.crear_factura(factura)
                     else:
-                        print("Creando factura NUEVO SISTEMA")
+                        logger.info("[EXPORT] Creando factura NUEVO SISTEMA")
                         res_created_invoice = await cegid_api.crear_factura_nuevo_sistema(factura)
 
                     if res_created_invoice != "duplicated":
                         break
 
                     if intento >= max_retries:
-                        print("[ERROR] Demasiados duplicados, abortando.")
+                        logger.error("[EXPORT] Demasiados duplicados, abortando.")
                         break
 
-                    print("[WARN] Cegid devolvió 'duplicated'. Incrementando Documento y reintentando...")
+                    logger.warning("[EXPORT] Cegid devolvió 'duplicated'. Incrementando Documento y reintentando...")
                     factura = self._bump_document(factura, nombre_empresa)
                     intento += 1
 
@@ -145,16 +148,15 @@ class AsyncService:
                     await cegid_api.add_documento_factura(doc_meta)
 
                 if res_created_invoice == "duplicated":
-                    print(f"[ERROR] No se pudo subir la factura {factura['NumeroFactura']} (duplicated persistente)")
+                    logger.error(f"[EXPORT] No se pudo subir la factura {factura['NumeroFactura']} (duplicated persistente)")
                 else:
-                    print(f"[OK] Subida factura {factura['NumeroFactura']}")
+                    logger.info(f"[EXPORT] Subida factura {factura['NumeroFactura']}")
 
             except Exception as e:
-                print(f"[ERROR] processing invoice {inv_header['id']}: {e}")
-                traceback.print_exc()
+                logger.exception(f"[EXPORT] Error procesando invoice {inv_header['id']}: {e}")
             finally:
                 increment_offset(holded_api.api_key, doc_type)
-                print(f'[DEBUG] Offset incrementado para API key {holded_api.api_key}')
+                logger.debug(f"[EXPORT] Offset incrementado para API key {holded_api.api_key}")
                 time.sleep(0.5)
 
         return None
@@ -186,12 +188,12 @@ class AsyncService:
         return client
 
     async def transform_invoice_holded_to_cegid(self, holded_invoice: dict, holded_client: dict, nombre_empresa: str, cuenta_cliente: str, doc_type: str):
-        print("[DEBUG] transform_invoice_holded_to_cegid called with parameters:")
-        print(f"  holded_invoice: {json.dumps(holded_invoice, indent=2, ensure_ascii=False)}")
-        print(f"  holded_client: {json.dumps(holded_client, indent=2, ensure_ascii=False)}")
-        print(f"  nombre_empresa: {nombre_empresa}")
-        print(f"  cuenta_cliente: {cuenta_cliente}")
-        print(f"  doc_type: {doc_type}")
+        logger.debug("[EXPORT] transform_invoice_holded_to_cegid called with parameters:")
+        logger.debug(f"  holded_invoice: {json.dumps(holded_invoice, indent=2, ensure_ascii=False)}")
+        logger.debug(f"  holded_client: {json.dumps(holded_client, indent=2, ensure_ascii=False)}")
+        logger.debug(f"  nombre_empresa: {nombre_empresa}")
+        logger.debug(f"  cuenta_cliente: {cuenta_cliente}")
+        logger.debug(f"  doc_type: {doc_type}")
         iva_reg_code = "01"
         cuenta_compras_agrarias = ""
 
@@ -254,7 +256,7 @@ class AsyncService:
 
             # 👉  RETENCIÓN 2 %
             if rate == -2 or "s_retencion2" in prod.get("taxes", []):
-                print("***HAY RETENCION!****")
+                logger.debug("[EXPORT] ***HAY RETENCION!***")
                 ret_base += base
                 ret_pct   = 2
                 continue
