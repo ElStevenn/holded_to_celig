@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentación - Integración Holded ↔ Cegid</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-600: #3b5ccc;
+            --brand-700: #2f4db0;
+            --accent-100: #eef2ff;
+            --accent-200: #e0e7ff;
+            --bg: #f4f5f7;
+            --fg: #1f2a37;
+            --card-bg: #ffffff;
+            --muted: #6b7280;
+            --border: #d1d5db;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+        
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
+            box-shadow: 0 4px 20px rgba(59, 92, 204, 0.15);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: 700;
+            letter-spacing: .01em;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .navbar-brand i { font-size: 1.5rem; }
+        
+        .navbar .btn-back {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .navbar .btn-back:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            border: 1px solid var(--border);
+        }
+        
+        .sidebar h5 {
+            color: var(--brand-700);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .sidebar li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .sidebar a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar a:hover, .sidebar a.active {
+            background: var(--accent-100);
+            color: var(--brand-700);
+            font-weight: 600;
+        }
+        
+        .content-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            border: 1px solid var(--border);
+            scroll-margin-top: 2rem;
+        }
+        
+        .content-section h2 {
+            color: var(--brand-700);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--accent-200);
+        }
+        
+        .content-section h3 {
+            color: var(--brand-600);
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+        
+        .content-section p {
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+        
+        .content-section code {
+            background: #f3f4f6;
+            color: #e11d48;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .content-section pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.25rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            box-shadow: 0 4px 12px rgba(0,0,0,.1);
+        }
+        
+        .alert-info {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e40af;
+            border-left: 4px solid var(--info);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        
+        .alert-warning {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border-left: 4px solid var(--warning);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+            border-left: 4px solid var(--success);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        
+        .card-step {
+            background: white;
+            border: 2px solid var(--accent-200);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .card-step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+            border-color: var(--brand-600);
+        }
+        
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
+            color: white;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-right: 0.75rem;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: var(--brand-700);
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .definition-term {
+            font-weight: 700;
+            color: var(--brand-700);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 1.05rem;
+        }
+        
+        .definition-desc {
+            margin-left: 1.5rem;
+            padding-left: 1rem;
+            border-left: 3px solid var(--accent-200);
+            margin-bottom: 1rem;
+        }
+        
+        .badge-custom {
+            background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        ul.feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        ul.feature-list li {
+            padding: 0.5rem 0;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        ul.feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .example-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .example-title {
+            font-weight: 600;
+            color: var(--brand-600);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                <i class="bi bi-book-fill"></i>
+                Documentación
+            </span>
+            <div class="d-flex gap-2 align-items-center">
+                <small class="text-white-50" style="margin-right: 1rem;">
+                    <i class="bi bi-person-check-fill me-1"></i>
+                    <span id="sessionUsername">Usuario</span>
+                </small>
+                <a href="{{ url_for('index') }}" class="btn btn-back">
+                    <i class="bi bi-arrow-left me-2"></i>Volver al Panel
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-3">
+                <div class="sidebar">
+                    <h5><i class="bi bi-list-ul me-2"></i>Contenidos</h5>
+                    <ul>
+                        <li><a href="#introduccion">Introducción</a></li>
+                        <li><a href="#conceptos">Conceptos Clave</a></li>
+                        <li><a href="#crear-integracion">Crear Nueva Integración</a></li>
+                        <li><a href="#tipos-cuenta">Tipos de Cuenta</a></li>
+                        <li><a href="#auto-migration">Migración Automática</a></li>
+                        <li><a href="#exportar">Exportar Facturas</a></li>
+                        <li><a href="#troubleshooting">Solución de Problemas</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <!-- Introducción -->
+                <section id="introduccion" class="content-section">
+                    <h2><i class="bi bi-info-circle-fill"></i>Introducción</h2>
+                    <p>
+                        Esta herramienta permite integrar automáticamente las facturas y documentos de <strong>Holded</strong> 
+                        con el sistema de contabilidad <strong>Cegid</strong>. La sincronización se realiza de forma segura 
+                        y permite migrar diferentes tipos de documentos.
+                    </p>
+                    
+                    <div class="alert-info">
+                        <strong><i class="bi bi-lightbulb-fill me-2"></i>¿Qué hace esta herramienta?</strong><br>
+                        Exporta documentos (facturas, presupuestos, compras) desde Holded y los crea automáticamente 
+                        en Cegid, manteniendo la numeración y datos correctos.
+                    </div>
+
+                    <h3>Flujo General</h3>
+                    <ul class="feature-list">
+                        <li>Conecta una cuenta de Holded mediante su API Key</li>
+                        <li>Configura qué tipos de documentos quieres migrar</li>
+                        <li>Define los offsets para continuar la numeración</li>
+                        <li>Exporta las facturas con un solo clic</li>
+                        <li>Monitorea el progreso en tiempo real</li>
+                    </ul>
+                </section>
+
+                <!-- Conceptos Clave -->
+                <section id="conceptos" class="content-section">
+                    <h2><i class="bi bi-mortarboard-fill"></i>Conceptos Clave</h2>
+                    
+                    <div class="definition-term">
+                        <i class="bi bi-key-fill text-warning me-2"></i>API Key (Holded)
+                    </div>
+                    <div class="definition-desc">
+                        <p>
+                            Es la clave de acceso a la API de Holded. Te permite conectarte a tu cuenta 
+                            y obtener los documentos. Se obtiene desde el panel de Holded en:
+                        </p>
+                        <div class="example-box">
+                            <div class="example-title">Cómo obtenerla:</div>
+                            <code>Holded → Configuración → API → Generar API Key</code>
+                        </div>
+                    </div>
+
+                    <div class="definition-term">
+                        <i class="bi bi-building text-primary me-2"></i>Código de Empresa (Cegid)
+                    </div>
+                    <div class="definition-desc">
+                        <p>
+                            Identificador único de tu empresa en Cegid. Es el código que aparece en 
+                            Cegid para tu empresa. Ejemplo: <code>72</code>, <code>148</code>
+                        </p>
+                    </div>
+
+                    <div class="definition-term">
+                        <i class="bi bi-arrows-move text-info me-2"></i>Tipos de Documentos a Migrar
+                    </div>
+                    <div class="definition-desc">
+                        <p>
+                            Define qué tipos de documentos de Holded quieres exportar a Cegid. 
+                            En la interfaz verás nombres descriptivos, pero internamente se usan códigos técnicos:
+                        </p>
+                        
+                        <h5 class="mt-3 mb-2" style="color: var(--success);">✅ Tipos Disponibles Actualmente</h5>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>En la interfaz</th>
+                                    <th>Código interno</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Facturas de venta</strong></td>
+                                    <td><code>invoice</code></td>
+                                    <td>Facturas emitidas a clientes</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Presupuestos</strong></td>
+                                    <td><code>estimate</code></td>
+                                    <td>Presupuestos enviados a clientes</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Facturas de compra</strong></td>
+                                    <td><code>purchase</code></td>
+                                    <td>Facturas recibidas de proveedores</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5 class="mt-4 mb-2" style="color: var(--muted);">🔒 Próximamente (Deshabilitados)</h5>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Pedidos de venta</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Pedidos de compra</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Notas de crédito</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Albaranes</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Remitos</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Facturas proforma</td>
+                                    <td><span class="badge bg-secondary">En desarrollo</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="alert-info">
+                            <strong>Nota:</strong> Actualmente solo están disponibles los 3 primeros tipos de documentos. 
+                            Los demás aparecen en el menú desplegable pero están deshabilitados hasta que se complete su implementación.
+                        </div>
+                    </div>
+
+                    <div class="definition-term">
+                        <i class="bi bi-hash text-success me-2"></i>Offset (Número de Documento)
+                    </div>
+                    <div class="definition-desc">
+                        <p>
+                            Es el <strong>último número de documento</strong> que se usó en Cegid para ese tipo. 
+                            Sirve para continuar la numeración correctamente y evitar duplicados.
+                        </p>
+                        
+                        <div class="example-box">
+                            <div class="example-title">Ejemplo práctico:</div>
+                            <p style="margin: 0.5rem 0;">
+                                Si en Cegid la última factura es <code>FAC-116</code>, el offset debe ser <code>116</code>.
+                                La próxima factura que se cree será <code>FAC-117</code>.
+                            </p>
+                        </div>
+
+                        <div class="alert-warning">
+                            <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Importante:</strong>
+                            Cada tipo de documento tiene su propio offset. Si migras facturas (invoice) 
+                            y presupuestos (estimate), cada uno necesita su offset correspondiente.
+                        </div>
+                    </div>
+
+                    <div class="definition-term">
+                        <i class="bi bi-gear-fill text-danger me-2"></i>Tipo de Cuenta
+                    </div>
+                    <div class="definition-desc">
+                        <p>
+                            Define qué motor interno usa la integración para crear las facturas en Cegid:
+                        </p>
+                        <ul>
+                            <li>
+                                <strong><code>nuevo_sistema</code></strong> (Recomendado) → 
+                                Motor moderno y optimizado
+                            </li>
+                            <li>
+                                <strong><code>normal</code></strong> → 
+                                Motor legacy, usar solo si el nuevo no funciona
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Crear Nueva Integración -->
+                <section id="crear-integracion" class="content-section">
+                    <h2><i class="bi bi-plus-circle-fill"></i>Crear Nueva Integración</h2>
+                    <p>Sigue estos pasos para configurar una nueva integración entre Holded y Cegid:</p>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">1</span> <span class="step-title">Haz clic en "Nueva"</span></h4>
+                        <p>En el panel principal, haz clic en el botón <span class="badge-custom">+ Nueva</span> en la sección "Cuentas Holded".</p>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">2</span> <span class="step-title">Completa los datos básicos</span></h4>
+                        <p><strong>Nombre empresa:</strong> Un nombre descriptivo (ej: "Hermanos Pastor Vellisca SL")</p>
+                        <p><strong>API Key:</strong> La clave API obtenida desde Holded</p>
+                        <p><strong>Código empresa:</strong> El código de tu empresa en Cegid (ej: 72)</p>
+                        <p><strong>Offset documento:</strong> El último número de factura usado en Cegid</p>
+                        <p><strong>Tipo de cuenta:</strong> Selecciona <code>nuevo_sistema</code> (recomendado)</p>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">3</span> <span class="step-title">Configura los tipos de documentos</span></h4>
+                        <p>Añade los tipos de documentos que quieras migrar. Ahora puedes seleccionarlos desde un menú desplegable:</p>
+                        
+                        <div class="example-box">
+                            <div class="example-title">Ejemplo de configuración:</div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo (seleccionable)</th>
+                                        <th>Offset</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Facturas de venta</strong></td>
+                                        <td>116</td>
+                                        <td>Última factura: FAC-116</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Presupuestos</strong></td>
+                                        <td>69</td>
+                                        <td>Último presupuesto: PRE-69</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Facturas de compra</strong></td>
+                                        <td>64</td>
+                                        <td>Última compra: COM-64</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert-info">
+                            <strong>Tip:</strong> Haz clic en <strong>"+ Añadir tipo de documento"</strong> para agregar más tipos. 
+                            Ya no necesitas escribir códigos como "invoice" o "estimate", simplemente selecciona del menú desplegable.
+                        </div>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">4</span> <span class="step-title">Guarda la configuración</span></h4>
+                        <p>Haz clic en <strong>"Guardar"</strong> y la integración estará lista para usar.</p>
+                        <div class="alert-success">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            ¡La cuenta aparecerá en la tabla principal!
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tipos de Cuenta -->
+                <section id="tipos-cuenta" class="content-section">
+                    <h2><i class="bi bi-diagram-3-fill"></i>Tipos de Cuenta en Detalle</h2>
+                    
+                    <h3><code>nuevo_sistema</code> (Recomendado)</h3>
+                    <ul class="feature-list">
+                        <li>Motor moderno y optimizado</li>
+                        <li>Mejor manejo de errores</li>
+                        <li>Logs más detallados</li>
+                        <li>Más rápido y estable</li>
+                    </ul>
+
+                    <h3><code>normal</code></h3>
+                    <ul>
+                        <li>Motor legacy (antiguo)</li>
+                        <li>Usar solo si el nuevo sistema falla</li>
+                        <li>Menos características</li>
+                    </ul>
+
+                    <div class="alert-warning">
+                        <strong>Recomendación:</strong> Siempre prueba primero con <code>nuevo_sistema</code>. 
+                        Solo cambia a <code>normal</code> si encuentras errores.
+                    </div>
+                </section>
+
+                <!-- Migración Automática -->
+                <section id="auto-migration" class="content-section">
+                    <h2><i class="bi bi-clock-history"></i>Migración Automática</h2>
+                    
+                    <p>
+                        El sistema incluye una función de <strong>migración automática</strong> que exporta 
+                        todas las facturas periódicamente sin intervención manual.
+                    </p>
+
+                    <div class="alert-success">
+                        <strong><i class="bi bi-check-circle-fill me-2"></i>Configuración Actual:</strong><br>
+                        Por defecto, la migración automática se ejecuta cada <strong>30 días</strong> a las 00:00 (medianoche).
+                    </div>
+
+                    <h3>¿Cómo Funciona?</h3>
+                    <p>
+                        La migración automática utiliza <strong>Celery Beat</strong> (un programador de tareas) 
+                        que se ejecuta en segundo plano y:
+                    </p>
+                    <ul class="feature-list">
+                        <li>Procesa todas las cuentas de Holded configuradas</li>
+                        <li>Exporta todos los tipos de documentos (facturas, presupuestos, compras)</li>
+                        <li>Actualiza automáticamente los offsets</li>
+                        <li>Registra todos los eventos en logs detallados</li>
+                        <li>Continúa con la siguiente cuenta si una falla</li>
+                    </ul>
+
+                    <h3>Ver Estado en el Panel</h3>
+                    <p>
+                        En la página principal verás una tarjeta destacada que muestra:
+                    </p>
+                    <div class="example-box">
+                        <ul>
+                            <li><strong>Estado:</strong> Activo / Desactivado</li>
+                            <li><strong>Intervalo:</strong> Cada cuántos días se ejecuta (ej: 30 días)</li>
+                            <li><strong>Próxima ejecución:</strong> Cuándo se ejecutará la siguiente migración</li>
+                            <li><strong>Botón "Ejecutar Ahora":</strong> Para iniciar una migración manual inmediatamente</li>
+                        </ul>
+                    </div>
+
+                    <h3>Ejecutar Migración Manual</h3>
+                    <div class="card-step">
+                        <h4><span class="step-number">1</span> <span class="step-title">Haz clic en "Ejecutar Ahora"</span></h4>
+                        <p>
+                            En la tarjeta de "Migración Automática" del panel principal, 
+                            haz clic en el botón <strong>"Ejecutar Ahora"</strong>.
+                        </p>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">2</span> <span class="step-title">La tarea se inicia</span></h4>
+                        <p>
+                            El sistema iniciará la migración inmediatamente en segundo plano. 
+                            Verás una notificación de confirmación.
+                        </p>
+                        <div class="alert-info">
+                            <strong>Nota:</strong> La migración se ejecuta de forma asíncrona, 
+                            por lo que puedes seguir usando la aplicación mientras se procesa.
+                        </div>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">3</span> <span class="step-title">Revisa los logs</span></h4>
+                        <p>
+                            Los logs de la migración automática se guardan en el sistema. 
+                            Puedes revisar qué se procesó y si hubo errores.
+                        </p>
+                    </div>
+
+                    <h3>Configurar el Intervalo</h3>
+                    <p>
+                        El intervalo de migración se configura mediante variables de entorno:
+                    </p>
+                    <pre>
+# En tu archivo .env o variables de entorno
+AUTO_MIGRATION_ENABLED=true
+AUTO_MIGRATION_INTERVAL_DAYS=30
+
+# Para cambiar el intervalo, modifica el valor:
+# Cada 15 días:
+AUTO_MIGRATION_INTERVAL_DAYS=15
+
+# Cada mes (aprox.):
+AUTO_MIGRATION_INTERVAL_DAYS=30
+
+# Cada 2 meses:
+AUTO_MIGRATION_INTERVAL_DAYS=60
+</pre>
+
+                    <div class="alert-warning">
+                        <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Importante:</strong>
+                        Después de cambiar las variables de entorno, debes reiniciar los servicios 
+                        de Celery Beat para que los cambios surtan efecto:
+                        <pre style="margin-top: 0.5rem;">make restart-beat</pre>
+                    </div>
+
+                    <h3>Desactivar Migración Automática</h3>
+                    <p>Si deseas desactivar la migración automática temporalmente:</p>
+                    <pre>
+# En tu archivo .env
+AUTO_MIGRATION_ENABLED=false
+</pre>
+                    <p>Y reinicia Celery Beat: <code>make restart-beat</code></p>
+
+                    <div class="alert-success">
+                        <strong><i class="bi bi-lightbulb-fill me-2"></i>Ventajas:</strong><br>
+                        • No necesitas recordar exportar facturas manualmente<br>
+                        • Mantiene tus sistemas sincronizados automáticamente<br>
+                        • Reduce errores humanos<br>
+                        • Ahorra tiempo de gestión
+                    </div>
+                </section>
+
+                <!-- Exportar Facturas -->
+                <section id="exportar" class="content-section">
+                    <h2><i class="bi bi-cloud-arrow-up-fill"></i>Exportar Facturas Manualmente</h2>
+                    
+                    <div class="card-step">
+                        <h4><span class="step-number">1</span> <span class="step-title">Abre la cuenta</span></h4>
+                        <p>Haz clic en el botón <i class="bi bi-pencil-square"></i> de edición en la cuenta que quieres exportar.</p>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">2</span> <span class="step-title">Inicia la exportación</span></h4>
+                        <p>Haz clic en el botón verde <strong>"Exportar facturas a Cegid"</strong>.</p>
+                        <div class="alert-info">
+                            El proceso comenzará inmediatamente y se ejecutará en segundo plano.
+                        </div>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">3</span> <span class="step-title">Monitorea el progreso</span></h4>
+                        <p>Se abrirá automáticamente una ventana con los logs en tiempo real donde podrás ver:</p>
+                        <ul>
+                            <li>Qué documentos se están procesando</li>
+                            <li>Errores (si los hay)</li>
+                            <li>Estado de cada factura</li>
+                        </ul>
+                    </div>
+
+                    <div class="card-step">
+                        <h4><span class="step-number">4</span> <span class="step-title">Revisa el resultado</span></h4>
+                        <p>Al finalizar, verás un resumen del proceso. Revisa que todo se haya exportado correctamente.</p>
+                        <div class="alert-success">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            Los offsets se actualizan automáticamente después de cada exportación.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Troubleshooting -->
+                <section id="troubleshooting" class="content-section">
+                    <h2><i class="bi bi-tools"></i>Solución de Problemas</h2>
+
+                    <h3>❌ Error: "API Key inválida"</h3>
+                    <p><strong>Solución:</strong> Verifica que la API Key de Holded esté correcta y activa.</p>
+
+                    <h3>❌ Error: "Código de empresa no encontrado"</h3>
+                    <p><strong>Solución:</strong> Revisa que el código de empresa en Cegid sea correcto.</p>
+
+                    <h3>❌ Error: "Factura duplicada"</h3>
+                    <p><strong>Solución:</strong> El offset está mal configurado. Ajusta el offset al último número usado en Cegid.</p>
+
+                    <h3>❌ La exportación se detiene</h3>
+                    <p><strong>Solución:</strong></p>
+                    <ul>
+                        <li>Revisa los logs para ver el error específico</li>
+                        <li>Verifica la conexión a internet</li>
+                        <li>Asegúrate de que los tokens de Cegid estén actualizados</li>
+                    </ul>
+
+                    <h3>⚠️ Algunas facturas no se exportan</h3>
+                    <p><strong>Posibles causas:</strong></p>
+                    <ul>
+                        <li>Facturas ya existentes en Cegid</li>
+                        <li>Datos incompletos en Holded</li>
+                        <li>Clientes no sincronizados</li>
+                    </ul>
+                    <p><strong>Solución:</strong> Revisa los logs detallados para identificar qué facturas fallaron y por qué.</p>
+
+                    <div class="alert-info">
+                        <strong><i class="bi bi-info-circle-fill me-2"></i>Consejo:</strong>
+                        Siempre revisa los logs después de una exportación. Te indicarán exactamente 
+                        qué se procesó y si hubo algún problema.
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Smooth scroll for sidebar links
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                
+                // Remove active class from all links
+                document.querySelectorAll('.sidebar a').forEach(l => l.classList.remove('active'));
+                // Add active class to clicked link
+                this.classList.add('active');
+                
+                // Smooth scroll to section
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        // Highlight active section on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    document.querySelectorAll('.sidebar a').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.content-section').forEach(section => {
+            observer.observe(section);
+        });
+
+        // Load session information
+        async function loadSessionInfo() {
+            try {
+                const response = await fetch('/api/session/status');
+                const data = await response.json();
+                
+                if (data.logged_in && data.username) {
+                    const usernameSpan = document.getElementById('sessionUsername');
+                    if (usernameSpan) {
+                        usernameSpan.textContent = data.username;
+                        usernameSpan.title = `Sesión válida por ${data.session_lifetime_days} días`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading session info:', error);
+            }
+        }
+        
+        loadSessionInfo();
+    </script>
+</body>
+</html>

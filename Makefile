@@ -1,5 +1,6 @@
 .PHONY: up down logs logs-worker logs-beat logs-redis restart-worker \
-        restart-beat clean build celery-worker celery-beat shell test
+        restart-beat clean build celery-worker celery-beat shell test \
+        down-app run-local
 
 DOCKER_COMPOSE := docker compose
 DOCKER          := docker
@@ -13,6 +14,10 @@ up-app:
 
 down:
 	$(DOCKER_COMPOSE) down
+
+down-app:
+	$(DOCKER_COMPOSE) stop app
+	$(DOCKER_COMPOSE) rm -f app
 
 logs:
 	$(DOCKER_COMPOSE) logs -f
@@ -51,3 +56,13 @@ shell:
 
 test:
 	pytest tests/
+
+run-local:
+	@echo "Stopping Docker app container..."
+	@$(DOCKER_COMPOSE) stop app 2>/dev/null || true
+	@echo "Running app locally with venv..."
+	@export PYTHONPATH=. && \
+	 export REDIS_URL=redis://localhost:6379/0 && \
+	 export BASIC_AUTH_USER=$${BASIC_AUTH_USER:-luis} && \
+	 export BASIC_AUTH_PASS=$${BASIC_AUTH_PASS:-12345} && \
+	 ./venv/bin/python src/quart_app/app.py

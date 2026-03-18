@@ -4,6 +4,16 @@ from dotenv import load_dotenv
 import random
 import logging
 
+# Load environment variables from .env file
+load_dotenv()
+
+# ------------------ AUTO MIGRATION CONFIG ------------------
+# Auto-migration interval in days (configurable)
+AUTO_MIGRATION_INTERVAL_DAYS = int(os.environ.get("AUTO_MIGRATION_INTERVAL_DAYS", "30"))
+
+# Enable/disable auto-migration
+AUTO_MIGRATION_ENABLED = os.environ.get("AUTO_MIGRATION_ENABLED", "true").lower() == "true"
+
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "credentials.json")
 logging.getLogger(__name__).debug("[Config] Credentials file path: %s", CREDENTIALS_FILE)
 try:
@@ -24,7 +34,10 @@ CLIENT_ID_CONT = credentials["cegid"]["api_contavilidad"]["clientId"]
 CLIENT_SECRET_CONT = credentials["cegid"]["api_contavilidad"]["clientSecret"]
 
 # REDIS
-REDIS_URL = 'redis://redis:6379/0'
+# Use environment variable for Redis URL, default to localhost for local development
+# In Docker, set REDIS_URL=redis://redis:6379/0
+# For local development, use REDIS_URL=redis://localhost:6379/0 or leave unset
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 def update_token_con(new_token):
     with open(CREDENTIALS_FILE, "w") as f:

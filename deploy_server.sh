@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # ==== CONFIG ====
-DOMAIN="integracion-luis.paumateu.com"
-EMAIL="paumat17@gmail.com"
+DOMAIN="api-cegid.cebr.xyz"
+EMAIL="luis.ceb.fr@gmail.com"
 APP_DIR="/home/ubuntu/holded_to_celig"   # path with docker-compose.yml
 SERVICE="app"                            # compose service name
 PORT=8080                                # host-side port you mapped to localhost

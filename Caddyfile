@@ -1,0 +1,16 @@
+{
+	email paumat17@gmail.com
+}
+
+api-cegid.cebr.xyz {
+	encode zstd gzip
+	log {
+		output stdout
+		format json
+	}
+    reverse_proxy host.docker.internal:8080 {
+		header_up Host {host}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

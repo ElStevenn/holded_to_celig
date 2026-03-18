@@ -1,13 +1,13 @@
 import os
 import uuid
-import base64
+import secrets
 from functools import wraps
 from typing import Dict
 import asyncio
 import logging
 from quart import (
     Quart, render_template, request, jsonify, redirect,
-    url_for, flash, Response
+    url_for, flash, Response, session
 )
 
 from src.quart_app.config_manager import (
@@ -29,52 +29,42 @@ from src.services.logging_utils import (
 )
 
 # ------------------ Config básica ------------------
-ADMIN_USER = os.environ.get("BASIC_AUTH_USER", "admin")
-ADMIN_PASS = os.environ.get("BASIC_AUTH_PASS", "12345")
+ADMIN_USER = "luis_cebrian" # os.environ.get("BASIC_AUTH_USER", "admin")
+ADMIN_PASS = "holacegid123"# os.environ.get("BASIC_AUTH_PASS", "12345")
 EXPORT_TASKS: Dict[str, asyncio.Task] = {}
 
 app = Quart(__name__)
-app.secret_key = "cambia_esto_por_una_clave_segura"
+
+# Secret key - MUST be fixed for sessions to persist across app restarts
+# Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"
+# Then set it in .env as SECRET_KEY=your-generated-key
+SECRET_KEY = "CHANGE_THIS_IN_PRODUCTION_USE_ENV_VAR_SECRET_KEY_12345678901234567890"
+
+app.secret_key = SECRET_KEY
+
+# Security settings for sessions
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_NAME'] = 'holded_cegid_session'
+# Session lifetime: 30 days (configurable via env var)
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=int(os.environ.get("SESSION_LIFETIME_SECONDS", 30 * 24 * 60 * 60)))
 
 # Logging
 configure_logging()
 logger = logging.getLogger(__name__)
 
 
-# ------------------ Basic Auth ------------------
-def _unauthorized():
-    return Response(
-        "Auth required", 401,
-        {"WWW-Authenticate": 'Basic realm="Integración Holded↔Cegid"'}
-    )
-
-def _check_auth(header_value: str) -> bool:
-    if not header_value or not header_value.startswith("Basic "):
-        return False
-    try:
-        decoded = base64.b64decode(header_value.split(" ", 1)[1]).decode("utf-8")
-        user, pwd = decoded.split(":", 1)
-    except Exception:
-        return False
-    return user == ADMIN_USER and pwd == ADMIN_PASS
-
-def basic_auth_required(fn):
+# ------------------ Session-based Authentication ------------------
+def login_required(fn):
+    """Decorator to require login for protected routes"""
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        if _check_auth(request.headers.get("Authorization")):
-            return await fn(*args, **kwargs)
-        return _unauthorized()
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return await fn(*args, **kwargs)
     return wrapper
-
-# Si quieres proteger TODO salvo estáticos:
-@app.before_request
-async def proteger_todo():
-    # permite estáticos y favicon sin auth (comenta si no quieres)
-    if request.path.startswith("/static") or request.path == "/favicon.ico":
-        return None
-    if _check_auth(request.headers.get("Authorization")):
-        return None
-    return _unauthorized()
 
 async def _run_export_job(acc: dict, cfg_cegid: dict, task_id: str):
     """
@@ -117,22 +107,129 @@ async def _run_export_job(acc: dict, cfg_cegid: dict, task_id: str):
 
 
 
+# ------------------ Authentication Routes ------------------
+@app.route("/login", methods=["GET", "POST"])
+async def login():
+    if request.method == "POST":
+        form = await request.form
+        username = form.get("username", "").strip()
+        password = form.get("password", "")
+        
+        # Secure constant-time comparison to prevent timing attacks
+        username_match = secrets.compare_digest(username, ADMIN_USER)
+        password_match = secrets.compare_digest(password, ADMIN_PASS)
+        
+        if username_match and password_match:
+            session.clear()  # Clear any existing session data
+            session['logged_in'] = True
+            session['username'] = username
+            session.permanent = True  # Make session persistent (survives browser restart)
+            
+            # Calculate session duration in days
+            session_lifetime = app.config.get('PERMANENT_SESSION_LIFETIME')
+            if hasattr(session_lifetime, 'total_seconds'):
+                session_days = session_lifetime.total_seconds() / (24 * 60 * 60)
+            else:
+                session_days = 30  # fallback
+            
+            logger.info(f"Successful login for user: {username} (session valid for {int(session_days)} days)")
+            # Flash message removed as per user request
+            return redirect(url_for('index'))
+        else:
+            logger.warning(f"Failed login attempt for user: {username}")
+            await flash("Usuario o contraseña incorrectos", "danger")
+            return await render_template("login.html", error="Usuario o contraseña incorrectos")
+    
+    # If already logged in, redirect to index
+    if session.get('logged_in'):
+        return redirect(url_for('index'))
+    
+    return await render_template("login.html")
+
+@app.route("/logout")
+async def logout():
+    username = session.get('username', 'Unknown')
+    session.clear()
+    logger.info(f"User logged out: {username}")
+    await flash("Sesión cerrada correctamente", "success")
+    return redirect(url_for('login'))
+
 # ------------------ Rutas ------------------
 @app.route("/")
-@basic_auth_required
+@login_required
 async def index():
     config = cargar_config()
     return await render_template("set_configuration.html", config=config)
 
+@app.route("/documentation")
+@login_required
+async def documentation():
+    return await render_template("documentation.html")
+
+@app.route("/api/session/status")
+async def get_session_status():
+    """Get current session status"""
+    # Get session lifetime and convert to days
+    session_lifetime = app.config.get('PERMANENT_SESSION_LIFETIME')
+    if hasattr(session_lifetime, 'total_seconds'):
+        # It's a timedelta object
+        session_days = int(session_lifetime.total_seconds() / (24 * 60 * 60))
+    else:
+        # It's an integer (seconds)
+        session_days = int(session_lifetime / (24 * 60 * 60)) if session_lifetime else 30
+    
+    return jsonify({
+        "logged_in": session.get('logged_in', False),
+        "username": session.get('username'),
+        "session_lifetime_days": session_days
+    })
+
+@app.route("/api/auto-migration/status")
+@login_required
+async def get_auto_migration_status():
+    """Get current auto-migration configuration"""
+    from src.config import settings
+    
+    # Check if Celery is available
+    celery_available = False
+    try:
+        from src.workers.celery_config import celery_app
+        # Try to inspect Celery
+        celery_app.control.inspect().stats()
+        celery_available = True
+    except:
+        celery_available = False
+    
+    return {
+        "enabled": settings.AUTO_MIGRATION_ENABLED,
+        "interval_days": settings.AUTO_MIGRATION_INTERVAL_DAYS,
+        "next_run": "Calculated by Celery Beat" if celery_available else "Celery no disponible",
+        "celery_available": celery_available
+    }
+
+@app.route("/api/auto-migration/trigger", methods=["POST"])
+@login_required
+async def trigger_auto_migration():
+    """Manually trigger auto-migration task"""
+    try:
+        from src.workers.tasks import auto_migrate_invoices
+        # Trigger the task asynchronously
+        task = auto_migrate_invoices.delay()
+        logger.info(f"Manual auto-migration triggered, task_id: {task.id}")
+        return {"success": True, "task_id": task.id, "message": "Auto-migration initiated"}
+    except Exception as e:
+        logger.error(f"Error triggering auto-migration: {str(e)}")
+        return {"success": False, "error": str(e)}, 500
+
 
 # ------- API JSON -------
 @app.route("/api/config", methods=["GET"])
-@basic_auth_required
+@login_required
 async def api_get_config():
     return jsonify(cargar_config())
 
 @app.route("/api/config", methods=["POST"])
-@basic_auth_required
+@login_required
 async def api_post_config():
     data = await request.get_json()
     if not data:
@@ -143,7 +240,7 @@ async def api_post_config():
 
 # ------- CRUD Holded -------
 @app.route("/holded/nuevo", methods=["POST"])
-@basic_auth_required
+@login_required
 async def crear_holded():
     form = await request.form
     errores = validar_holded(form)
@@ -176,7 +273,7 @@ async def crear_holded():
 
 
 @app.route("/holded/<id>/editar", methods=["POST"])
-@basic_auth_required
+@login_required
 async def editar_holded(id):
     form = await request.form
     logger.debug("Formulario recibido para editar cuenta Holded")
@@ -211,7 +308,7 @@ async def editar_holded(id):
 
 
 @app.route("/holded/<id>/eliminar", methods=["POST"])
-@basic_auth_required
+@login_required
 async def eliminar_holded(id):
     config = cargar_config()
     antes = len(config["holded_accounts"])
@@ -227,7 +324,7 @@ async def eliminar_holded(id):
 
 
 @app.route("/holded/<id>/duplicar", methods=["POST"])
-@basic_auth_required
+@login_required
 async def duplicar_holded(id):
     config = cargar_config()
     cuenta = obtener_holded_por_id(config, id)
@@ -245,7 +342,7 @@ async def duplicar_holded(id):
 
 
 @app.route("/holded/<id>/exportar", methods=["POST"])
-@basic_auth_required
+@login_required
 async def exportar_holded(id):
     config = cargar_config()
     cuenta = obtener_holded_por_id(config, id)
@@ -287,7 +384,7 @@ async def exportar_holded(id):
 
 
 @app.route("/tasks/<task_id>", methods=["GET"])
-@basic_auth_required
+@login_required
 async def task_status(task_id):
     t = EXPORT_TASKS.get(task_id)
     meta = get_task_meta(task_id) or {}
@@ -295,7 +392,7 @@ async def task_status(task_id):
 
 
 @app.route("/tasks/<task_id>/logs", methods=["GET"])
-@basic_auth_required
+@login_required
 async def task_logs(task_id):
     try:
         start = int(request.args.get("start", 0))
@@ -307,7 +404,7 @@ async def task_logs(task_id):
 
 
 @app.route("/tasks", methods=["GET"])
-@basic_auth_required
+@login_required
 async def tasks_list():
     acc = request.args.get("account_id")
     try:
@@ -321,4 +418,5 @@ async def tasks_list():
 
 if __name__ == "__main__":
     # Usa hypercorn o el server integrado
-    app.run(debug=True)
+    # Escucha en todas las interfaces (0.0.0.0) para acceso externo
+    app.run(debug=True, host="0.0.0.0", port=5000)
